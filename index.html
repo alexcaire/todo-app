@@ -22,6 +22,12 @@
     .filters button{background:#eef3ff;border:0;padding:6px 8px;border-radius:8px;cursor:pointer}
     .filters button.active{background:#2b7cff;color:white}
     .editable{background:transparent;border:1px dashed #cfd8e6;padding:6px;border-radius:6px}
+    .category-tag {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: 6px;
+  }
+
   </style>
 </head>
 <body>
@@ -29,8 +35,16 @@
     <h1>My To-Do</h1>
 
     <form id="addForm" aria-label="Add task">
-      <input id="taskInput" type="text" placeholder="Add a task (press Enter)" autocomplete="off" />
-      <button type="submit">Add</button>
+    <input id="taskInput" type="text" placeholder="Add a task" autocomplete="off" />
+
+  <select id="categoryInput">
+    <option value="general">General</option>
+    <option value="work">Work</option>
+    <option value="home">Home</option>
+    <option value="personal">Personal</option>
+  </select>
+
+  <button type="submit">Add</button>  
     </form>
 
     <div class="filters" role="tablist" aria-label="Filters">
@@ -64,16 +78,21 @@
       render();
     }
 
-    function addTask(text) {
-      tasks.unshift({ id: Date.now().toString(), text: text.trim(), done: false });
-      save();
+    
     }
 
     function toggleDone(id) {
       tasks = tasks.map(t => t.id === id ? {...t, done: !t.done} : t);
       save();
     }
-
+    function addTask(text, category) {
+      tasks.unshift({
+      id: Date.now().toString(),
+      text: text.trim(),
+      category,
+      done: false
+  });
+      save ();
     function deleteTask(id) {
       tasks = tasks.filter(t => t.id !== id);
       save();
@@ -103,7 +122,9 @@
         li.className = t.done ? 'done' : '';
         li.innerHTML = `
           <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Mark task done" />
-          <div class="task-text" contenteditable="false" role="textbox" aria-readonly="true">${escapeHtml(t.text)}</div>
+          <div class="task-text" contenteditable="false" role="textbox" aria-readonly="true">${escapeHtml(t.text)}
+            <span class="category-tag">(${t.category})</span>
+           </div>
           <div class="controls">
             <button class="edit">✏️</button>
             <button class="delete">🗑️</button>
@@ -164,9 +185,11 @@
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const v = input.value;
-      if (!v.trim()) return;
-      addTask(v);
+      const text = input.value.trim();
+      const category = document.getElementById('categoryInput').value;
+
+  if (!text) return;
+      addTask(text, category);  
       input.value = '';
       input.focus();
     });
