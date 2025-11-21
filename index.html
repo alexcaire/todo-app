@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Simple To-Do (Starter)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;padding:20px;background:#f4f6f8}
+    .app{max-width:720px;margin:0 auto;background:white;padding:18px;border-radius:10px;box-shadow:0 6px 22px rgba(20,30,50,0.08)}
+    h1{margin:0 0 12px;font-size:20px}
+    form{display:flex;gap:8px;margin-bottom:12px}
+    input[type="text"]{flex:1;padding:10px;border:1px solid #d6dbe0;border-radius:8px;font-size:14px}
+    button{padding:10px 12px;border-radius:8px;border:0;background:#2b7cff;color:white;font-weight:600;cursor:pointer}
+    ul{list-style:none;padding:0;margin:0}
+    li{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px}
+    li:nth-child(odd){background:#fbfdff}
+    .task-text{flex:1}
+    .done .task-text{text-decoration:line-through;color:#7a8190}
+    .controls button{margin-left:6px;background:transparent;border:0;color:#6b7280;cursor:pointer}
+    .small{font-size:13px;color:#6b7280;margin-top:8px}
+    .filters{display:flex;gap:8px;margin-bottom:8px}
+    .filters button{background:#eef3ff;border:0;padding:6px 8px;border-radius:8px;cursor:pointer}
+    .filters button.active{background:#2b7cff;color:white}
+    .editable{background:transparent;border:1px dashed #cfd8e6;padding:6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="app" role="application">
+    <h1>My To-Do</h1>
+
+    <form id="addForm" aria-label="Add task">
+      <input id="taskInput" type="text" placeholder="Add a task (press Enter)" autocomplete="off" />
+      <button type="submit">Add</button>
+    </form>
+
+    <div class="filters" role="tablist" aria-label="Filters">
+      <button data-filter="all" class="active">All</button>
+      <button data-filter="active">Active</button>
+      <button data-filter="done">Done</button>
+    </div>
+
+    <ul id="list" aria-live="polite"></ul>
+
+    <div class="small">
+      <span id="count">0</span> items • <button id="clearDone">Clear done</button>
+    </div>
+  </div>
+
+  <script>
+    // Simple to-do app with localStorage persistence
+    const STORAGE_KEY = 'todo_starter_tasks_v1';
+    let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let filter = 'all';
+
+    const listEl = document.getElementById('list');
+    const form = document.getElementById('addForm');
+    const input = document.getElementById('taskInput');
+    const countEl = document.getElementById('count');
+    const clearDoneBtn = document.getElementById('clearDone');
+    const filterButtons = document.querySelectorAll('.filters button');
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      render();
+    }
+
+    function addTask(text) {
+      tasks.unshift({ id: Date.now().toString(), text: text.trim(), done: false });
+      save();
+    }
+
+    function toggleDone(id) {
+      tasks = tasks.map(t => t.id === id ? {...t, done: !t.done} : t);
+      save();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      save();
+    }
+
+    function updateText(id, newText) {
+      tasks = tasks.map(t => t.id === id ? {...t, text: newText} : t);
+      save();
+    }
+
+    function clearDone() {
+      tasks = tasks.filter(t => !t.done);
+      save();
+    }
+
+    function setFilter(f) {
+      filter = f;
+      filterButtons.forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+      render();
+    }
+
+    function render() {
+      listEl.innerHTML = '';
+      const shown = tasks.filter(t => filter === 'all' ? true : (filter === 'done' ? t.done : !t.done));
+      shown.forEach(t => {
+        const li = document.createElement('li');
+        li.className = t.done ? 'done' : '';
+        li.innerHTML = `
+          <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Mark task done" />
+          <div class="task-text" contenteditable="false" role="textbox" aria-readonly="true">${escapeHtml(t.text)}</div>
+          <div class="controls">
+            <button class="edit">✏️</button>
+            <button class="delete">🗑️</button>
+          </div>
+        `;
+        const checkbox = li.querySelector('input[type="checkbox"]');
+        const editBtn = li.querySelector('.edit');
+        const delBtn = li.querySelector('.delete');
+        const textDiv = li.querySelector('.task-text');
+
+        checkbox.addEventListener('change', () => toggleDone(t.id));
+        delBtn.addEventListener('click', () => {
+          if (confirm('Delete this task?')) deleteTask(t.id);
+        });
+
+        editBtn.addEventListener('click', () => {
+          textDiv.contentEditable = 'true';
+          textDiv.classList.add('editable');
+          textDiv.focus();
+          selectAll(textDiv);
+        });
+
+        textDiv.addEventListener('blur', () => {
+          if (textDiv.isContentEditable) {
+            textDiv.contentEditable = 'false';
+            textDiv.classList.remove('editable');
+            const newText = textDiv.innerText.trim();
+            if (!newText) {
+              if (confirm('Task is empty — delete it?')) deleteTask(t.id);
+              else updateText(t.id, t.text);
+            } else {
+              updateText(t.id, newText);
+            }
+          }
+        });
+
+        textDiv.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); textDiv.blur(); }
+        });
+
+        listEl.appendChild(li);
+      });
+
+      countEl.textContent = tasks.length;
+      localStorage.setItem(STORAGE_KEY + '_lastRender', new Date().toISOString());
+    }
+
+    function escapeHtml(s){
+      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    }
+    function selectAll(el){
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value;
+      if (!v.trim()) return;
+      addTask(v);
+      input.value = '';
+      input.focus();
+    });
+
+    clearDoneBtn.addEventListener('click', () => {
+      if (confirm('Remove all completed tasks?')) clearDone();
+    });
+
+    filterButtons.forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
+
+    // initial render
+    render();
+  </script>
+</body>
+</html>
