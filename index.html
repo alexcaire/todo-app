@@ -1,194 +1,89 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minimalist To‑Do App</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, sans-serif;
-    }
-
-    body {
-      background: #f5f5f5;
-      display: flex;
-      justify-content: center;
-      padding: 2rem;
-      color: #333;
-    }
-
-    .app {
-      background: #ffffff;
-      width: 100%;
-      max-width: 480px;
-      padding: 2rem;
-      border-radius: 18px;
-      box-shadow: 0 4px 25px rgba(0,0,0,0.08);
-    }
-
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1.5rem;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    input, select, button {
-      padding: 0.7rem 0.9rem;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      font-size: 1rem;
-    }
-
-    input, select {
-      flex: 1;
-    }
-
-    button {
-      background: #333;
-      color: #fff;
-      cursor: pointer;
-      border: none;
-      transition: 0.2s;
-    }
-
-    button:hover {
-      background: #000;
-    }
-
-    .filter-row {
-      margin: 1rem 0;
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    ul {
-      list-style: none;
-      margin-top: 1rem;
-    }
-
-    li {
-      background: #fafafa;
-      padding: 0.9rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-radius: 10px;
-      margin-bottom: 0.6rem;
-      border: 1px solid #eee;
-    }
-
-    .category-tag {
-      font-size: 0.75rem;
-      background: #e0e0e0;
-      padding: 2px 6px;
-      border-radius: 6px;
-      margin-left: 8px;
-      opacity: 0.8;
-    }
-
-    .delete-btn {
-      background: none;
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-      color: #888;
-    }
-    .delete-btn:hover {
-      color: #333;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <title>Alex SIGA System</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <div class="app">
-    <h1>To‑Do</h1>
 
-    <div class="input-row">
-      <input id="taskInput" type="text" placeholder="New task..." />
-      <select id="categoryInput">
-        <option value="General">General</option>
-        <option value="Work">Work</option>
-        <option value="Home">Home</option>
-        <option value="Personal">Personal</option>
-      </select>
-      <button id="addBtn">Add</button>
+    <div class="app-header">
+      <div>
+        <h1><span class="emoji">✅</span> Alex SIGA System</h1>
+        <p class="subtitle">Categories, due dates & your daily system.</p>
+      </div>
     </div>
 
-    <div class="filter-row">
-      <select id="filterSelect">
-        <option value="all">All</option>
+    <!-- Add task form -->
+    <form id="addForm" autocomplete="off">
+      <input id="taskInput" type="text" placeholder="What do you need to do?" />
+      <select id="categorySelect">
         <option value="General">General</option>
-        <option value="Work">Work</option>
         <option value="Home">Home</option>
+        <option value="Work">Work</option>
         <option value="Personal">Personal</option>
       </select>
+      <input id="dueInput" type="date" />
+      <button type="submit" class="primary">＋ Add</button>
+
+      <label class="daily-toggle">
+        <input id="dailyInput" type="checkbox" />
+        <span>Daily task</span>
+      </label>
+    </form>
+
+    <!-- Filters -->
+    <div class="toolbar">
+      <div class="filter-group">
+        <div class="filter-group-label">Status</div>
+        <div class="filters">
+          <button class="chip active" data-filter="all">All</button>
+          <button class="chip" data-filter="active">Active</button>
+          <button class="chip" data-filter="done">Done</button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-label">Category</div>
+        <div class="category-filters">
+          <button class="chip active" data-category="all"><span class="dot"></span> All</button>
+          <button class="chip category-General" data-category="General"><span class="dot"></span> General</button>
+          <button class="chip category-Home" data-category="Home"><span class="dot"></span> Home</button>
+          <button class="chip category-Work" data-category="Work"><span class="dot"></span> Work</button>
+          <button class="chip category-Personal" data-category="Personal"><span class="dot"></span> Personal</button>
+
+          <!-- Daily → button -->
+          <button class="chip" id="openDailyDrawerBtn">
+            <span class="dot"></span> Daily →
+          </button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <span id="count">0</span> total • <span id="activeCount">0</span> active
+      </div>
     </div>
 
-    <ul id="taskList"></ul>
+    <ul id="list"></ul>
+
+    <div class="footer">
+      <button id="clearDone" class="link-btn">Clear completed</button>
+    </div>
+
   </div>
 
-  <script>
-    const taskInput = document.getElementById('taskInput');
-    const categoryInput = document.getElementById('categoryInput');
-    const filterSelect = document.getElementById('filterSelect');
-    const addBtn = document.getElementById('addBtn');
-    const taskList = document.getElementById('taskList');
+  <!-- DAILY DRAWER -->
+  <div id="dailyDrawer">
+    <div class="daily-drawer-header">
+      <h2>Daily Tasks</h2>
+      <button id="closeDailyDrawer">✕</button>
+    </div>
+    <ul id="dailyDrawerList"></ul>
+  </div>
 
-    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-
-    function saveTasks() {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
-
-    function renderTasks() {
-      const filter = filterSelect.value;
-      taskList.innerHTML = '';
-
-      tasks
-        .filter(task => filter === 'all' || task.category === filter)
-        .forEach((task, index) => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <span>${task.text} <span class="category-tag">${task.category}</span></span>
-            <button class="delete-btn" data-index="${index}">×</button>
-          `;
-          taskList.appendChild(li);
-        });
-    }
-
-    addBtn.addEventListener('click', () => {
-      const text = taskInput.value.trim();
-      const category = categoryInput.value;
-      if (!text) return;
-
-      tasks.push({ text, category });
-      saveTasks();
-      renderTasks();
-
-      taskInput.value = '';
-    });
-
-    taskList.addEventListener('click', e => {
-      if (e.target.classList.contains('delete-btn')) {
-        const index = e.target.dataset.index;
-        tasks.splice(index, 1);
-        saveTasks();
-        renderTasks();
-      }
-    });
-
-    filterSelect.addEventListener('change', renderTasks);
-
-    renderTasks();
-  </script>
+  <script src="main.js"></script>
 </body>
 </html>
