@@ -300,4 +300,36 @@ closeDailyDrawerBtn.addEventListener("click", () => {
 });
 
 // Initial render
+// -------------------------
+// DARK MODE TOGGLE
+// -------------------------
+
+const themeToggle = document.getElementById("themeToggle");
+if (!savedTheme) {
+  if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    document.body.classList.add("dark");
+    themeToggle.textContent = "☀️";
+  }
+}
+
+// Load saved theme
+let savedTheme = localStorage.getItem("theme");
+if (savedTheme === "dark") {
+  document.body.classList.add("dark");
+  themeToggle.textContent = "☀️";
+}
+
+// Toggle on click
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  
+  if (document.body.classList.contains("dark")) {
+    localStorage.setItem("theme", "dark");
+    themeToggle.textContent = "☀️";
+  } else {
+    localStorage.setItem("theme", "light");
+    themeToggle.textContent = "🌙";
+  }
+});
+
 render();
