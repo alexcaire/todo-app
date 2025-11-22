@@ -1,7 +1,29 @@
 /* --------------------------------------------------
    Minimal & Clean (Apple-like) UI Theme
    -------------------------------------------------- */
+/* Smooth theme transition */
+* {
+  transition: background-color .25s ease,
+              color .25s ease,
+              border-color .25s ease;
+}
 
+/* Dark Mode Theme */
+.dark {
+  --bg:#0f172a;
+  --card:#1e293b;
+
+  --primary:#60a5fa;
+  --primary-soft:#1e3a8a;
+
+  --text-main:#f1f5f9;
+  --text-muted:#94a3b8;
+
+  --border:#334155;
+
+  --danger:#f87171;
+}
+/* Light Mode Theme */
 :root{
   --bg:#f5f6f8;
   --card:#ffffff;
@@ -104,6 +126,20 @@ button.primary{
 button.primary:hover{
   transform:translateY(-1px);
   box-shadow:0 8px 18px rgba(37,99,235,0.28);
+}
+.theme-btn{
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.theme-btn:hover{
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .daily-toggle{
