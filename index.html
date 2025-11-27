@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Alex SIGA System</title>
+  <title> SIGA System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -10,15 +10,36 @@
 <body>
   <div class="app">
 
-    <div class="app-header">
-      <div>
-        <h1><span class="emoji">✅</span> Alex SIGA System</h1>
-        <button id="themeToggle" class="theme-btn">🌙</button>
-      </div>
-        <p class="subtitle">Categories, due dates & your daily system.</p>
+    <!-- HEADER / BRANDING -->
+    <header class="app-header">
+      <div class="branding-row">
+
+        <div class="brand-left">
+          <!-- Minimalist SVG logo -->
+          <svg class="logo" width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="6" fill="none"/>
+            <path d="M30 55 L45 70 L75 35"
+                  stroke="currentColor"
+                  stroke-width="8"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"/>
+          </svg>
+
+          <div class="brand-text">
+            <h1> SIGA System</h1>
+            <div class="made-by">Made by Alex</div>
+          </div>
+        </div>
+
+        <!-- DARK MODE BUTTON FAR RIGHT -->
+        <button id="themeToggle" class="theme-btn" aria-label="Toggle dark mode">🌙</button>
       </div>
 
-    <!-- Add task form -->
+      <p class="subtitle">Categories, due dates &amp; your daily system.</p>
+    </header>
+
+    <!-- ADD TASK FORM -->
     <form id="addForm" autocomplete="off">
       <input id="taskInput" type="text" placeholder="What do you need to do?" />
       <select id="categorySelect">
@@ -36,8 +57,10 @@
       </label>
     </form>
 
-    <!-- Filters -->
+    <!-- FILTERS + SORTING TOOLBAR -->
     <div class="toolbar">
+
+      <!-- STATUS FILTERS -->
       <div class="filter-group">
         <div class="filter-group-label">Status</div>
         <div class="filters">
@@ -47,6 +70,7 @@
         </div>
       </div>
 
+      <!-- CATEGORY FILTERS + DAILY DRAWER BUTTON -->
       <div class="filter-group">
         <div class="filter-group-label">Category</div>
         <div class="category-filters">
@@ -59,13 +83,30 @@
         </div>
       </div>
 
+      <!-- SORTING MENU -->
+      <div class="filter-group sort-group">
+        <div class="filter-group-label">Sort</div>
+        <select id="sortSelect" class="sort-select">
+          <option value="manual">Manual (drag)</option>
+          <option value="dueAsc">📅 Due date ↑</option>
+          <option value="dueDesc">📅 Due date ↓</option>
+          <option value="newest">🕒 Newest → oldest</option>
+          <option value="oldest">🕒 Oldest → newest</option>
+          <option value="alpha">🏷️ A → Z</option>
+          <option value="dailyTop">🔥 Daily on top</option>
+        </select>
+      </div>
+
+      <!-- SUMMARY -->
       <div class="summary">
         <span id="count">0</span> total • <span id="activeCount">0</span> active
       </div>
     </div>
 
+    <!-- MAIN LIST -->
     <ul id="list"></ul>
 
+    <!-- FOOTER -->
     <div class="footer">
       <button id="clearDone" class="link-btn">Clear completed</button>
     </div>
@@ -73,14 +114,17 @@
   </div>
 
   <!-- DAILY DRAWER -->
-  <div id="dailyDrawer">
+  <div id="dailyDrawer" class="daily-drawer">
     <div class="daily-drawer-header">
       <h2>Daily Tasks</h2>
-      <button id="closeDailyDrawer">✕</button>
+      <button id="closeDailyDrawer" class="icon-btn" aria-label="Close daily tasks">✕</button>
     </div>
     <ul id="dailyDrawerList"></ul>
   </div>
 
+  <!-- Sortable.js for drag & drop -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
+
