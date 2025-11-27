@@ -1,91 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 /* --------------------------------------------------
-   Minimal & Clean (Apple-like) UI Theme
-   -------------------------------------------------- */
-/* Smooth theme transition */
-* {
+   Light / Dark theme variables
+-------------------------------------------------- */
+
+/* Smooth theme transitions */
+*{
+  box-sizing:border-box;
   transition: background-color .25s ease,
               color .25s ease,
               border-color .25s ease;
 }
 
-/* Dark Mode Theme */
-.dark {
+/* Dark mode: applied when <body> has class="dark" */
+body.dark{
   --bg:#0f172a;
-  --card:#1e293b;
+  --card:#020617;
+  --card-soft:#111827;
 
   --primary:#60a5fa;
-  --primary-soft:#1e3a8a;
+  --primary-soft:#1d4ed8;
 
-  --text-main:#f1f5f9;
+  --text-main:#e5e7eb;
   --text-muted:#94a3b8;
 
-  --border:#334155;
+  --border:#1f2937;
 
   --danger:#f87171;
+  --shadow:0 18px 40px rgba(0,0,0,0.8);
 }
-/* Light Mode Theme */
+
+/* Light mode defaults */
 :root{
-  --bg:#f5f6f8;
+  --bg:#f5f7fb;
   --card:#ffffff;
+  --card-soft:#f9fafb;
 
-  --primary:#2563eb;
-  --primary-soft:#e6efff;
+  --primary:#3b7be0;
+  --primary-soft:#e7f0ff;
 
-  --text-main:#1f2937;
+  --text-main:#0f172a;
   --text-muted:#6b7280;
 
-  --border:#e5e7eb;
+  --border:#e7e9ee;
 
   --danger:#ef4444;
-  --shadow:0 4px 18px rgba(0,0,0,0.06);
+  --shadow:0 12px 28px rgba(15,23,42,0.10);
 }
 
-/* Reset / Global ------------------------------------------------*/
-*{
-  box-sizing:border-box;
-}
+/* --------------------------------------------------
+   Base layout
+-------------------------------------------------- */
 
 body{
   margin:0;
   padding:24px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text-main);
+  font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size:15px;
+  line-height:1.6;
+  background:var(--bg);
+  color:var(--text-main);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Layout --------------------------------------------------------*/
 .app{
   max-width:840px;
   margin:0 auto;
   background:var(--card);
   border-radius:20px;
-  padding:26px;
-  box-shadow: var(--shadow);
+  padding:26px 24px 20px;
+  box-shadow:var(--shadow);
   border:1px solid rgba(0,0,0,0.05);
-  animation: fadeIn 0.4s ease;
 }
 
-/* Header --------------------------------------------------------*/
-h1{
-  font-size:24px;
-  margin:0;
+/* --------------------------------------------------
+   Header / Branding
+-------------------------------------------------- */
+
+.app-header{
+  margin-bottom:16px;
+}
+
+.branding-row{
   display:flex;
   align-items:center;
-  gap:10px;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.brand-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.logo{
+  display:block;
+  color:var(--primary);
+}
+
+.brand-text h1{
+  margin:0;
+  font-size:24px;
+  display:flex;
+  align-items:center;
+  gap:8px;
   font-weight:600;
 }
 
-h1 .emoji{ font-size:28px; }
+.brand-text h1 .emoji{
+  font-size:26px;
+}
+
+.made-by{
+  font-size:11px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+  margin-top:2px;
+}
+
 .subtitle{
-  margin:4px 0 0 0;
+  margin:6px 0 0;
   font-size:13px;
   color:var(--text-muted);
 }
 
-/* Form ----------------------------------------------------------*/
+/* Dark mode button on far right */
+.theme-btn{
+  background:transparent;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:18px;
+  cursor:pointer;
+  color:var(--text-main);
+}
+
+.theme-btn:hover{
+  background:var(--primary-soft);
+  color:var(--primary);
+}
+
+/* --------------------------------------------------
+   Add form
+-------------------------------------------------- */
+
 form#addForm{
-  margin-top:16px;
+  margin-top:20px;
   display:grid;
   grid-template-columns: 2fr 1fr 1fr auto;
   gap:10px;
@@ -94,11 +156,10 @@ form#addForm{
 input[type="text"],
 select,
 input[type="date"]{
-  padding:12px;
+  padding:10px 12px;
   border-radius:12px;
   border:1px solid var(--border);
-  background:#fafafa;
-  transition:0.2s;
+  background:var(--card-soft);
   font-size:14px;
 }
 
@@ -107,7 +168,7 @@ select:focus,
 input[type="date"]:focus{
   outline:none;
   border-color:var(--primary);
-  background:white;
+  background:var(--card);
 }
 
 button.primary{
@@ -119,105 +180,135 @@ button.primary{
   font-weight:600;
   font-size:14px;
   cursor:pointer;
-  transition:0.25s ease;
-  box-shadow:0 6px 14px rgba(37,99,235,0.25);
+  box-shadow:0 10px 24px rgba(59,123,224,0.25);
 }
 
 button.primary:hover{
   transform:translateY(-1px);
-  box-shadow:0 8px 18px rgba(37,99,235,0.28);
-}
-.theme-btn{
-  background: transparent;
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 18px;
-  color: var(--text-main);
-}
-
-.theme-btn:hover{
-  background: var(--primary-soft);
-  color: var(--primary);
+  box-shadow:0 12px 28px rgba(59,123,224,0.30);
 }
 
 .daily-toggle{
   grid-column:1 / -1;
   font-size:13px;
-  margin-top:-2px;
   color:var(--text-muted);
   display:flex;
-  gap:8px;
   align-items:center;
+  gap:8px;
 }
 
-/* Filters --------------------------------------------------------*/
+/* --------------------------------------------------
+   Toolbar: filters + sort
+-------------------------------------------------- */
+
 .toolbar{
   display:flex;
   flex-wrap:wrap;
+  align-items:flex-end;
   justify-content:space-between;
-  margin:18px 0 10px 0;
   gap:12px;
+  margin:18px 0 10px;
+}
+
+.filter-group{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
 
 .filter-group-label{
   font-size:11px;
   font-weight:500;
   color:var(--text-muted);
-  margin-bottom:4px;
+}
+
+.filters,
+.category-filters{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
 }
 
 .chip{
   border-radius:999px;
-  padding:6px 14px;
-  background:#f3f4f6;
-  border:1px solid #e5e7eb;
-  font-size:13px;
+  padding:6px 12px;
+  background:var(--card-soft);
+  border:1px solid var(--border);
+  font-size:12px;
   cursor:pointer;
-  transition:0.2s ease;
 }
 
-.chip:hover{
-  background:#e9eaec;
+.chip .dot{
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  background:#d4d4d8;
+  display:inline-block;
 }
+
+.chip.category-General .dot{ background:#4b5563; }
+.chip.category-Home .dot{ background:#f97316; }
+.chip.category-Work .dot{ background:#2563eb; }
+.chip.category-Personal .dot{ background:#10b981; }
 
 .chip.active{
   background:var(--primary-soft);
-  color:var(--primary);
   border-color:var(--primary);
+  color:var(--primary);
 }
 
-/* Task List ------------------------------------------------------*/
+.summary{
+  font-size:12px;
+  color:var(--text-muted);
+}
+
+/* Sorting select */
+.sort-select{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:var(--card-soft);
+  font-size:12px;
+}
+
+/* --------------------------------------------------
+   Task list
+-------------------------------------------------- */
+
 ul#list{
   list-style:none;
-  padding:0;
   margin:0;
+  padding:0;
 }
 
 li.task{
   display:grid;
-  grid-template-columns: auto 2fr 1fr 1fr auto;
-  gap:14px;
-  padding:14px 16px;
-  margin-bottom:10px;
-  background:white;
-  border:1px solid #e5e7eb;
-  border-radius:16px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.04);
-  animation: fadeInUp 0.35s ease;
+  grid-template-columns:auto 2fr 1fr 1fr auto;
+  gap:12px;
+  padding:12px 14px;
+  margin-bottom:8px;
+  background:var(--card-soft);
+  border-radius:14px;
+  border:1px solid var(--border);
   align-items:center;
 }
 
-li.task:hover{
-  box-shadow:0 4px 14px rgba(0,0,0,0.06);
+li.task.done .task-text{
+  text-decoration:line-through;
+  color:var(--text-muted);
 }
 
-/* Category Pills ------------------------------------------------*/
+.task-text{
+  font-size:15px;
+  line-height:1.5;
+}
+
+/* Category pills */
 .pill{
   padding:4px 10px;
   border-radius:999px;
   font-size:12px;
+  font-weight:500;
   color:white;
   display:inline-flex;
   align-items:center;
@@ -232,12 +323,12 @@ li.task:hover{
 .daily-tag{
   background:#fde047;
   color:#854d0e;
-  padding:2px 8px;
   border-radius:999px;
+  padding:2px 8px;
   font-size:11px;
 }
 
-/* Due Dates ------------------------------------------------------*/
+/* Due dates */
 .due{
   font-size:13px;
   color:var(--text-muted);
@@ -248,10 +339,13 @@ li.task:hover{
   font-weight:500;
 }
 
-/* Controls -------------------------------------------------------*/
+/* Controls */
 .controls{
   display:flex;
   gap:8px;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  align-items:center;
 }
 
 .icon-btn{
@@ -260,36 +354,258 @@ li.task:hover{
   cursor:pointer;
   font-size:16px;
   padding:4px;
-  transition:0.2s ease;
 }
 
-.icon-btn:hover{
+.edit-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  border:0;
+  padding:4px;
+  cursor:pointer;
+  transition:transform 0.15s ease;
+}
+
+.delete-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  border:0;
+  padding:4px;
+  cursor:pointer;
+  transition:transform 0.15s ease;
+}
+
+.edit-btn:active{
+  transform:scale(0.95);
+}
+
+.edit-icon{
+  width:16px;
+  height:16px;
+  color:#6b7280;
+}
+
+.delete-btn:active{
+  transform:scale(0.95);
+}
+
+.delete-icon{
+  width:16px;
+  height:16px;
+  color:#9ca3af;
+}
+
+.delete-btn:hover .delete-icon{
+  color:#ef4444;
+}
+
+.edit-btn:hover .edit-icon{ color:var(--primary); }
+
+.add-sub-btn{
+  border:0;
+  border-radius:10px;
+  padding:8px 14px;
+  background:var(--primary);
+  font-size:13px;
+  color:#fff;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(59,123,224,0.25);
+}
+
+.add-sub-btn:hover{
+  background:var(--primary);
+  transform:translateY(-1px);
+  box-shadow:0 12px 28px rgba(59,123,224,0.30);
+}
+
+/* Star icon */
+.star-icon{
+  font-size:18px;
+  cursor:pointer;
+  user-select:none;
+  transition:color 0.25s ease, transform 0.15s ease;
+  color:#d1d5db;
+  display:inline-block;
+}
+
+.star-icon.active{
+  color:#facc15;
   transform:scale(1.15);
 }
 
-/* Daily Drawer ---------------------------------------------------*/
-#dailyDrawer{
+.star-icon:hover{
+  color:#fbbf24;
+}
+
+/* Subtasks */
+.subtasks{
+  grid-column:1 / -1;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:4px;
+}
+
+.subtasks-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  border-left:3px solid rgba(37,99,235,0.15);
+  padding-left:10px;
+  margin-left:6px;
+}
+
+.subtasks-empty{
+  font-size:12px;
+  color:var(--text-muted);
+}
+
+.subtask-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+}
+
+.subtask-row.done .subtask-text{
+  text-decoration:line-through;
+  color:var(--text-muted);
+}
+
+.subtask-check{
+  width:15px;
+  height:15px;
+  accent-color:var(--primary);
+}
+
+.subtask-text{
+  flex:1;
+  word-break:break-word;
+}
+
+.subtask-delete{
+  border-radius:50%;
+  border:1px solid var(--border);
+  width:28px;
+  height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--text-muted);
+  transition:all .2s ease;
+}
+
+.subtask-delete:hover{
+  background:var(--primary-soft);
+  border-color:var(--primary);
+  color:var(--primary);
+  transform:translateY(-1px);
+}
+
+.subtask-add{
+  display:flex;
+  gap:8px;
+}
+
+.subtask-add input{
+  flex:1;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--card-soft);
+  font-size:13px;
+}
+
+.subtask-add input:focus{
+  outline:none;
+  border-color:var(--primary);
+  background:var(--card);
+}
+
+.subtask-add-btn{
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--card-soft);
+  color:var(--text-main);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  transition:all .2s ease;
+}
+
+.subtask-add-btn:hover{
+  background:var(--primary-soft);
+  border-color:var(--primary);
+  color:var(--primary);
+  transform:translateY(-1px);
+}
+
+/* --------------------------------------------------
+   Footer
+-------------------------------------------------- */
+
+.footer{
+  margin-top:10px;
+  display:flex;
+  justify-content:flex-end;
+}
+
+.link-btn{
+  background:transparent;
+  border:0;
+  color:var(--primary);
+  cursor:pointer;
+  font-size:12px;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+/* --------------------------------------------------
+   Daily drawer
+-------------------------------------------------- */
+
+.daily-drawer{
   position:fixed;
   top:0;
   right:-360px;
   width:320px;
   height:100vh;
-  background:white;
+  background:var(--card);
   border-left:1px solid var(--border);
-  box-shadow:-6px 0 20px rgba(0,0,0,0.12);
-  padding:20px;
-  transition: right 0.35s ease;
+  box-shadow:-10px 0 24px rgba(15,23,42,0.12);
+  padding:24px 22px;
+  transition:right .35s ease;
+  z-index:30;
 }
 
-#dailyDrawer.open{
+.daily-drawer.open{
   right:0;
 }
 
 .daily-drawer-header{
   display:flex;
-  justify-content:space-between;
   align-items:center;
-  margin-bottom:16px;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.daily-drawer-header h2{
+  margin:0;
+  font-size:18px;
 }
 
 #dailyDrawerList{
@@ -298,28 +614,129 @@ li.task:hover{
   padding:0;
 }
 
+/* Each daily task in its own box */
 #dailyDrawerList li{
-  padding:12px;
+  background:var(--card-soft);
   border-radius:14px;
-  background:#fafafa;
-  border:1px solid #e5e7eb;
-  margin-bottom:10px;
-  animation: fadeIn 0.4s ease;
+  border:1px solid var(--border);
+  padding:12px 12px;
+  margin-bottom:12px;
+  font-size:14px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
 }
 
-/* Animations -----------------------------------------------------*/
-@keyframes fadeIn{
-  from{ opacity:0; }
-  to{ opacity:1; }
+.daily-task-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-@keyframes fadeInUp{
-  from{
-    opacity:0;
-    transform:translateY(6px);
+.daily-check{
+  margin-top:2px;
+  width:16px;
+  height:16px;
+  accent-color:var(--primary);
+}
+
+.daily-task-row .task-text{
+  flex:1;
+  line-height:1.5;
+}
+
+.daily-remove{
+  margin-left:auto;
+  width:26px;
+  height:26px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--card);
+  color:var(--text-muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s ease;
+}
+
+.daily-remove:hover{
+  background:var(--primary-soft);
+  border-color:var(--primary);
+  color:var(--primary);
+  transform:translateY(-1px);
+}
+
+.daily-meta{
+  font-size:12px;
+  color:var(--text-muted);
+}
+
+#dailyDrawerList li.done .task-text{
+  text-decoration:line-through;
+  color:var(--text-muted);
+}
+
+.daily-chip{
+  font-size:11px;
+  border-radius:999px;
+  padding:4px 8px;
+  background:var(--card-soft);
+  border:1px solid var(--border);
+  color:var(--text-muted);
+}
+
+.daily-chip.overdue{
+  background:#fef2f2;
+  border-color:#fecdd3;
+  color:#b91c1c;
+}
+
+.daily-chip.today{
+  background:#ecfdf3;
+  border-color:#bbf7d0;
+  color:#166534;
+}
+
+.daily-empty{
+  padding:20px 12px;
+  color:var(--text-muted);
+  text-align:left;
+  border:1px dashed var(--border);
+  border-radius:12px;
+  background:var(--card-soft);
+}
+
+/* --------------------------------------------------
+   Responsive
+-------------------------------------------------- */
+
+@media (max-width:720px){
+  body{ padding:12px; }
+
+  .app{
+    padding:18px 12px;
   }
-  to{
-    opacity:1;
-    transform:translateY(0);
+
+  form#addForm{
+    grid-template-columns:1fr;
+  }
+
+  li.task{
+    grid-template-columns:auto 1fr;
+    grid-template-areas:
+      "check text"
+      ". pill"
+      ". due"
+      ". controls";
+  }
+
+  li.task input[type="checkbox"]{ grid-area:check; }
+  li.task .task-text{ grid-area:text; }
+  li.task .pill{ grid-area:pill; }
+  li.task .due{ grid-area:due; }
+  li.task .controls{ grid-area:controls; }
+
+  .toolbar{
+    align-items:flex-start;
   }
 }
