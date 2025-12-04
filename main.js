@@ -19,6 +19,8 @@ function normalizeTasks(list) {
 }
 
 let tasks = normalizeTasks(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+let lastAddedSubtaskId = null;
+let lastAddedSubtaskTaskId = null;
 
 let statusFilter = "all";
 let categoryFilter = "all";
@@ -78,13 +80,14 @@ function addSubtask(taskId, text) {
   const trimmed = text.trim();
   if (!trimmed) return;
 
+  let newId = null;
   tasks = tasks.map(t => t.id === taskId
     ? {
         ...t,
         subtasks: [
           ...t.subtasks,
           {
-            id: `${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+            id: (newId = `${Date.now()}-${Math.random().toString(16).slice(2, 6)}`),
             text: trimmed,
             done: false
           }
@@ -92,7 +95,10 @@ function addSubtask(taskId, text) {
       }
     : t
   );
+  lastAddedSubtaskId = newId;
+  lastAddedSubtaskTaskId = taskId;
   save();
+  return newId;
 }
 
 // --------------------------------------
@@ -341,9 +347,11 @@ function render() {
   }
 
   // Render list
+  const isMobile = window.innerWidth < 480;
+
   shown.forEach(t => {
     const li = document.createElement("li");
-    li.className = "task" + (t.done ? " done" : "");
+    li.className = "task task-card" + (t.done ? " done" : "");
     li.dataset.id = t.id; // needed for drag & drop
 
     const checkbox = document.createElement("input");
@@ -379,16 +387,6 @@ function render() {
 
     const controls = document.createElement("div");
     controls.className = "controls";
-
-    const addSubBtn = document.createElement("button");
-    addSubBtn.type = "button";
-    addSubBtn.className = "add-sub-btn";
-    addSubBtn.textContent = "+ Add";
-    addSubBtn.title = "Add subtask";
-    addSubBtn.addEventListener("click", () => {
-      const newSub = prompt("Add subtask:");
-      if (newSub && newSub.trim()) addSubtask(t.id, newSub.trim());
-    });
 
     const dailyBtn = document.createElement("button");
     dailyBtn.className = "icon-btn";
@@ -431,7 +429,6 @@ function render() {
       if (confirm("Delete this task?")) deleteTask(t.id);
     });
 
-    controls.appendChild(addSubBtn);
     controls.appendChild(dailyBtn);
     controls.appendChild(editBtn);
     controls.appendChild(delBtn);
@@ -444,49 +441,110 @@ function render() {
 
     // Subtasks
     const subtasks = Array.isArray(t.subtasks) ? t.subtasks : [];
-    if (subtasks.length) {
-      const subtasksSection = document.createElement("div");
-      subtasksSection.className = "subtasks";
+    const subtasksSection = document.createElement("div");
+    subtasksSection.className = "subtasks";
 
-      const subtasksList = document.createElement("div");
-      subtasksList.className = "subtasks-list";
+    const subtasksList = document.createElement("div");
+    subtasksList.className = "subtasks-list";
 
-      subtasks.forEach(sub => {
-        const row = document.createElement("div");
-        row.className = "subtask-row" + (sub.done ? " done" : "");
+    const renderSubtaskRow = sub => {
+      const row = document.createElement("div");
+      row.className = "subtask-row" + (sub.done ? " done" : "");
+      if (sub.id === lastAddedSubtaskId) row.classList.add("slide-in-subtask");
 
-        const subCheck = document.createElement("input");
-        subCheck.type = "checkbox";
-        subCheck.className = "subtask-check";
-        subCheck.checked = sub.done;
-        subCheck.addEventListener("change", () => toggleSubtask(t.id, sub.id));
+      const subCheck = document.createElement("input");
+      subCheck.type = "checkbox";
+      subCheck.className = "subtask-check";
+      subCheck.checked = sub.done;
+      subCheck.addEventListener("change", () => toggleSubtask(t.id, sub.id));
 
-        const subText = document.createElement("div");
-        subText.className = "subtask-text";
-        subText.textContent = sub.text;
+      const subText = document.createElement("div");
+      subText.className = "subtask-text";
+      subText.textContent = sub.text;
 
-        const subDelete = document.createElement("button");
-        subDelete.className = "icon-btn subtask-delete";
-        subDelete.setAttribute("aria-label", "Delete subtask");
-        subDelete.textContent = "x";
-        subDelete.addEventListener("click", () => deleteSubtask(t.id, sub.id));
+      const subDelete = document.createElement("button");
+      subDelete.className = "icon-btn subtask-delete";
+      subDelete.setAttribute("aria-label", "Delete subtask");
+      subDelete.textContent = "x";
+      subDelete.addEventListener("click", () => deleteSubtask(t.id, sub.id));
 
-        row.appendChild(subCheck);
-        row.appendChild(subText);
-        row.appendChild(subDelete);
-        subtasksList.appendChild(row);
+      row.appendChild(subCheck);
+      row.appendChild(subText);
+      row.appendChild(subDelete);
+      subtasksList.appendChild(row);
+    };
+
+    subtasks.forEach(renderSubtaskRow);
+
+    const mountMobileSubtaskInput = () => {
+      const existing = subtasksList.querySelector(".mobile-subtask-input");
+      if (existing) {
+        const inputEl = existing.querySelector("input");
+        if (inputEl) inputEl.focus();
+        return;
+      }
+
+      const row = document.createElement("div");
+      row.className = "subtask-row mobile-subtask-input";
+
+      const subInput = document.createElement("input");
+      subInput.type = "text";
+      subInput.className = "subtask-text";
+      subInput.placeholder = "New subtask";
+
+      const inlineAdd = document.createElement("button");
+      inlineAdd.type = "button";
+      inlineAdd.className = "icon-btn subtask-add-inline";
+      inlineAdd.textContent = "+";
+
+      const submitInline = () => {
+        const value = subInput.value.trim();
+        if (!value) {
+          row.classList.remove("shake");
+          void row.offsetWidth;
+          row.classList.add("shake");
+          return;
+        }
+        addSubtask(t.id, value);
+      };
+
+      inlineAdd.addEventListener("click", submitInline);
+      subInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitInline();
+        }
       });
 
-      subtasksSection.appendChild(subtasksList);
+      row.appendChild(subInput);
+      row.appendChild(inlineAdd);
+      subtasksList.appendChild(row);
+      subInput.focus();
+    };
 
-      li.appendChild(subtasksSection);
-    }
+    subtasksSection.appendChild(subtasksList);
+    li.appendChild(subtasksSection);
+
+    const subtaskFab = document.createElement("button");
+    subtaskFab.className = "subtask-fab-small";
+    subtaskFab.type = "button";
+    subtaskFab.textContent = "+";
+    subtaskFab.addEventListener("click", mountMobileSubtaskInput);
+    li.appendChild(subtaskFab);
 
     listEl.appendChild(li);
   });
 
   countEl.textContent = tasks.length.toString();
   activeCountEl.textContent = tasks.filter(t => !t.done).length.toString();
+
+  if (lastAddedSubtaskTaskId) {
+    const li = listEl.querySelector(`li.task[data-id="${lastAddedSubtaskTaskId}"]`);
+    const list = li ? li.querySelector(".subtasks-list") : null;
+    if (list) list.scrollTop = list.scrollHeight;
+  }
+  lastAddedSubtaskId = null;
+  lastAddedSubtaskTaskId = null;
 }
 
 // --------------------------------------
