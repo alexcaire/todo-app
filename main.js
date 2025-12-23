@@ -1,5 +1,4 @@
-﻿console.log("main.js loaded ✅", location.href, Date.now());
-import { signIn, signOutUser, onAuth } from "./firebase.js";
+﻿import { signIn, signOutUser, onAuth } from "./firebase.js";
 
 // --------------------------------------
 // STORAGE
@@ -7,6 +6,8 @@ import { signIn, signOutUser, onAuth } from "./firebase.js";
 const STORAGE_KEY_BASE = "todo_tasks";
 
 let activeUserId = null;
+let currentUser = null;
+let accountMenuOpen = false;
 
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
@@ -59,10 +60,11 @@ const openDailyDrawerBtn = document.getElementById("openDailyDrawerBtn");
 const closeDailyDrawerBtn = document.getElementById("closeDailyDrawer");
 
 const sortSelect = document.getElementById("sortSelect");
-const themeToggle = document.getElementById("themeToggle");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const userLabel = document.getElementById("userLabel");
+const themeToggle = document.getElementById("themeToggleBtn");
+const accountChip = document.getElementById("accountChip");
+const accountMenu = document.getElementById("accountMenu");
+const accountMenuSignOut = document.getElementById("accountMenuSignOut");
+const accountMenuCopyEmail = document.getElementById("accountMenuCopyEmail");
 
 // --------------------------------------
 // SAVE
@@ -636,26 +638,137 @@ function applySavedTheme() {
 function updateThemeButton() {
   if (!themeToggle) return;
   const isDark = document.body.classList.contains("dark");
-  themeToggle.textContent = isDark ? "☀️" : "🌙";
+  themeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
 }
 
 // --------------------------------------
 // AUTH UI
 // --------------------------------------
+function getInitialsFromUser(user) {
+  const source = (user && (user.displayName || user.email)) || "";
+  const parts = source.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  if (source) return source.slice(0, 2).toUpperCase();
+  return "?";
+}
+
+function closeAccountMenu() {
+  accountMenuOpen = false;
+  if (accountMenu) accountMenu.hidden = true;
+  if (accountChip) accountChip.setAttribute("aria-expanded", "false");
+}
+
+function openAccountMenu() {
+  if (!accountMenu || !currentUser) return;
+  accountMenu.hidden = false;
+  accountMenuOpen = true;
+  accountChip?.setAttribute("aria-expanded", "true");
+}
+
+function toggleAccountMenu() {
+  if (accountMenuOpen) closeAccountMenu();
+  else openAccountMenu();
+}
+
+function renderAccountChipSignedOut() {
+  if (!accountChip) return;
+  accountChip.textContent = "Sign in →";
+  accountChip.setAttribute("aria-expanded", "false");
+  closeAccountMenu();
+}
+
+function renderAccountChipSignedIn(user) {
+  if (!accountChip) return;
+  accountChip.innerHTML = "";
+
+  const avatar = document.createElement("span");
+  avatar.className = "account-avatar";
+  if (user.photoURL) {
+    const img = document.createElement("img");
+    img.src = user.photoURL;
+    img.alt = user.displayName || user.email || "User";
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = getInitialsFromUser(user);
+  }
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "account-name";
+  nameSpan.textContent = user.displayName || user.email || "Signed in";
+
+  const chevron = document.createElement("span");
+  chevron.className = "account-chevron";
+  chevron.textContent = "?";
+
+  accountChip.appendChild(avatar);
+  accountChip.appendChild(nameSpan);
+  accountChip.appendChild(chevron);
+  accountChip.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");
+}
+
 function initAuthUI() {
   console.log("[Auth] DOM ready, wiring buttons");
 
-  if (loginBtn) {
-    loginBtn.addEventListener("click", () => {
-      signIn().catch(err => console.error("[Auth] signIn error", err));
+  renderAccountChipSignedOut();
+
+  if (accountChip) {
+    accountChip.addEventListener("click", () => {
+      if (!currentUser) {
+        signIn().catch(err => console.error("[Auth] signIn error", err));
+      } else {
+        toggleAccountMenu();
+      }
     });
   }
 
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
+  if (accountMenuSignOut) {
+    accountMenuSignOut.addEventListener("click", () => {
+      closeAccountMenu();
       signOutUser().catch(err => console.error("[Auth] signOut error", err));
     });
   }
+
+  if (accountMenuCopyEmail) {
+    accountMenuCopyEmail.addEventListener("click", () => {
+      const email = currentUser && currentUser.email;
+      if (!email) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(email)
+          .then(() => console.log("[Auth] email copied"))
+          .catch(err => console.warn("[Auth] copy failed", err));
+      } else {
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = email;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          textarea.remove();
+          console.log("[Auth] email copied (fallback)");
+        } catch (err) {
+          console.warn("[Auth] copy failed (fallback)", err);
+        }
+      }
+      closeAccountMenu();
+    });
+  }
+
+  document.addEventListener("click", e => {
+    if (!accountMenuOpen) return;
+    if ((accountChip && accountChip.contains(e.target)) ||
+        (accountMenu && accountMenu.contains(e.target))) {
+      return;
+    }
+    closeAccountMenu();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      closeAccountMenu();
+    }
+  });
 
   onAuth(user => {
     console.log("[Auth] UI update", user ? (user.displayName || user.email) : "Not signed in");
@@ -664,14 +777,15 @@ function initAuthUI() {
       console.log("[Auth] activeUserId changed", activeUserId, "->", newUserId);
     }
     activeUserId = newUserId;
+    currentUser = user || null;
+    closeAccountMenu();
+    if (currentUser) {
+      renderAccountChipSignedIn(currentUser);
+    } else {
+      renderAccountChipSignedOut();
+    }
     loadTasks();
     render();
-    if (userLabel) {
-      userLabel.textContent =
-        user ? (user.displayName || user.email || "Signed in") : "Not signed in";
-    }
-    if (loginBtn) loginBtn.hidden = !!user;
-    if (logoutBtn) logoutBtn.hidden = !user;
   });
 }
 
@@ -748,3 +862,7 @@ applySavedTheme();
 loadTasks();
 render();
 initSortable();
+
+
+
+
