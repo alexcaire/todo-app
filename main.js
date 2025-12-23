@@ -1,7 +1,12 @@
+﻿console.log("main.js loaded ✅", location.href, Date.now());
+import { signIn, signOutUser, onAuth } from "./firebase.js";
+
 // --------------------------------------
 // STORAGE
 // --------------------------------------
-const STORAGE_KEY = "todo_categories_due_daily_v1";
+const STORAGE_KEY_BASE = "todo_tasks";
+
+let activeUserId = null;
 
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
@@ -18,7 +23,12 @@ function normalizeTasks(list) {
   }));
 }
 
-let tasks = normalizeTasks(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+function getStorageKey() {
+  const key = activeUserId ? `${STORAGE_KEY_BASE}_${activeUserId}` : `${STORAGE_KEY_BASE}_guest`;
+  return key;
+}
+
+let tasks = [];
 let lastAddedSubtaskId = null;
 let lastAddedSubtaskTaskId = null;
 
@@ -50,13 +60,24 @@ const closeDailyDrawerBtn = document.getElementById("closeDailyDrawer");
 
 const sortSelect = document.getElementById("sortSelect");
 const themeToggle = document.getElementById("themeToggle");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const userLabel = document.getElementById("userLabel");
 
 // --------------------------------------
 // SAVE
 // --------------------------------------
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  const key = getStorageKey();
+  console.log(`[Storage] saving to key: ${key}`);
+  localStorage.setItem(key, JSON.stringify(tasks));
   render();
+}
+
+function loadTasks() {
+  const key = getStorageKey();
+  console.log(`[Storage] loading from key: ${key}`);
+  tasks = normalizeTasks(JSON.parse(localStorage.getItem(key) || "[]"));
 }
 
 // --------------------------------------
@@ -619,6 +640,48 @@ function updateThemeButton() {
 }
 
 // --------------------------------------
+// AUTH UI
+// --------------------------------------
+function initAuthUI() {
+  console.log("[Auth] DOM ready, wiring buttons");
+
+  if (loginBtn) {
+    loginBtn.addEventListener("click", () => {
+      signIn().catch(err => console.error("[Auth] signIn error", err));
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      signOutUser().catch(err => console.error("[Auth] signOut error", err));
+    });
+  }
+
+  onAuth(user => {
+    console.log("[Auth] UI update", user ? (user.displayName || user.email) : "Not signed in");
+    const newUserId = user ? user.uid : null;
+    if (activeUserId !== newUserId) {
+      console.log("[Auth] activeUserId changed", activeUserId, "->", newUserId);
+    }
+    activeUserId = newUserId;
+    loadTasks();
+    render();
+    if (userLabel) {
+      userLabel.textContent =
+        user ? (user.displayName || user.email || "Signed in") : "Not signed in";
+    }
+    if (loginBtn) loginBtn.hidden = !!user;
+    if (logoutBtn) logoutBtn.hidden = !user;
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAuthUI);
+} else {
+  initAuthUI();
+}
+
+// --------------------------------------
 // EVENTS
 // --------------------------------------
 
@@ -682,10 +745,6 @@ themeToggle.addEventListener("click", () => {
 // INITIALIZE
 // --------------------------------------
 applySavedTheme();
+loadTasks();
 render();
 initSortable();
-
-
-
-
-

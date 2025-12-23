@@ -36,6 +36,12 @@
         <button id="themeToggle" class="theme-btn" aria-label="Toggle dark mode">🌙</button>
       </div>
 
+      <div class="auth-bar">
+        <button id="loginBtn">Sign in</button>
+        <button id="logoutBtn" hidden>Sign out</button>
+        <span id="userLabel">Not signed in</span>
+      </div>
+
       <p class="subtitle">Categories, due dates &amp; your daily system.</p>
     </header>
 
@@ -124,7 +130,6 @@
 
   <!-- Sortable.js for drag & drop -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script src="main.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
-
