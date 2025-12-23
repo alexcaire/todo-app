@@ -1,7 +1,7 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <title> SIGA System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="styles.css">
@@ -32,14 +32,29 @@
           </div>
         </div>
 
-        <!-- DARK MODE BUTTON FAR RIGHT -->
-        <button id="themeToggle" class="theme-btn" aria-label="Toggle dark mode">🌙</button>
-      </div>
-
-      <div class="auth-bar">
-        <button id="loginBtn">Sign in</button>
-        <button id="logoutBtn" hidden>Sign out</button>
-        <span id="userLabel">Not signed in</span>
+        <div class="header-actions">
+          <button id="themeToggleBtn" class="icon-btn theme-toggle-btn" aria-label="Toggle dark mode">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="account-wrap">
+            <button
+              id="accountChip"
+              class="account-chip"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="accountMenu"
+            >
+              Sign in →
+            </button>
+            <div id="accountMenu" class="account-menu" hidden role="menu">
+              <button type="button" id="accountMenuSignOut" role="menuitem">Sign out</button>
+              <button type="button" id="accountMenuCopyEmail" role="menuitem">Copy email</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <p class="subtitle">Categories, due dates &amp; your daily system.</p>
@@ -55,7 +70,7 @@
         <option value="Personal">Personal</option>
       </select>
       <input id="dueInput" type="date" />
-      <button type="submit" class="primary">＋ Add</button>
+      <button type="submit" class="primary">+ Add</button>
 
       <label class="daily-toggle">
         <input id="dailyInput" type="checkbox" />
@@ -94,18 +109,18 @@
         <div class="filter-group-label">Sort</div>
         <select id="sortSelect" class="sort-select">
           <option value="manual">Manual (drag)</option>
-          <option value="dueAsc">📅 Due date ↑</option>
-          <option value="dueDesc">📅 Due date ↓</option>
-          <option value="newest">🕒 Newest → oldest</option>
-          <option value="oldest">🕒 Oldest → newest</option>
-          <option value="alpha">🏷️ A → Z</option>
-          <option value="dailyTop">🔥 Daily on top</option>
+          <option value="dueAsc">Due date ↑</option>
+          <option value="dueDesc">Due date ↓</option>
+          <option value="newest">Newest → oldest</option>
+          <option value="oldest">Oldest → newest</option>
+          <option value="alpha">A → Z</option>
+          <option value="dailyTop">Daily on top</option>
         </select>
       </div>
 
       <!-- SUMMARY -->
       <div class="summary">
-        <span id="count">0</span> total • <span id="activeCount">0</span> active
+        <span id="count">0</span> total · <span id="activeCount">0</span> active
       </div>
     </div>
 
@@ -123,7 +138,7 @@
   <div id="dailyDrawer" class="daily-drawer">
     <div class="daily-drawer-header">
       <h2>Daily Tasks</h2>
-      <button id="closeDailyDrawer" class="icon-btn" aria-label="Close daily tasks">✕</button>
+      <button id="closeDailyDrawer" class="icon-btn" aria-label="Close daily tasks">×</button>
     </div>
     <ul id="dailyDrawerList"></ul>
   </div>
