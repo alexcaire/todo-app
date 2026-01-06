@@ -101,6 +101,7 @@
           <button class="chip category-Work" data-category="Work"><span class="dot"></span> Work</button>
           <button class="chip category-Personal" data-category="Personal"><span class="dot"></span> Personal</button>
           <button class="chip" id="openDailyDrawerBtn"><span class="dot"></span> Daily →</button>
+          <button id="openWorkingDrawerBtn" class="chip">Working on <span id="workingCount" class="badge">0</span></button>
         </div>
       </div>
 
@@ -141,6 +142,15 @@
       <button id="closeDailyDrawer" class="icon-btn" aria-label="Close daily tasks">×</button>
     </div>
     <ul id="dailyDrawerList"></ul>
+  </div>
+
+  <!-- WORKING (Doing) DRAWER -->
+  <div id="workingDrawer" class="daily-drawer">
+    <div class="daily-drawer-header">
+      <h2>What I'm working on</h2>
+      <button id="closeWorkingDrawer" class="icon-btn" aria-label="Close working tasks">×</button>
+    </div>
+    <ul id="workingDrawerList"></ul>
   </div>
 
   <!-- Sortable.js for drag & drop -->

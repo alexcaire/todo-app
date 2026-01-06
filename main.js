@@ -64,6 +64,13 @@ const dailyDrawerList = document.getElementById("dailyDrawerList");
 const openDailyDrawerBtn = document.getElementById("openDailyDrawerBtn");
 const closeDailyDrawerBtn = document.getElementById("closeDailyDrawer");
 
+// Working (Doing) drawer elements
+const openWorkingDrawerBtn = document.getElementById("openWorkingDrawerBtn");
+const workingDrawer = document.getElementById("workingDrawer");
+const closeWorkingDrawerBtn = document.getElementById("closeWorkingDrawer");
+const workingDrawerList = document.getElementById("workingDrawerList");
+const workingCountEl = document.getElementById("workingCount");
+
 const sortSelect = document.getElementById("sortSelect");
 const themeToggle = document.getElementById("themeToggleBtn");
 const accountChip = document.getElementById("accountChip");
@@ -127,6 +134,9 @@ function addSubtask(taskId, text) {
   );
   lastAddedSubtaskId = newId;
   lastAddedSubtaskTaskId = taskId;
+  // Auto-promote parent if any subtask is doing
+  const parent = tasks.find(t => t.id === taskId);
+  if (parent) autoPromoteParentStatus(parent);
   save();
   return newId;
 }
@@ -176,6 +186,9 @@ function toggleSubtask(taskId, subtaskId) {
       })
     };
   });
+  // After toggling a subtask status, auto-promote parent if needed
+  const parent = tasks.find(t => t.id === taskId);
+  if (parent) autoPromoteParentStatus(parent);
   save();
 }
 
@@ -194,6 +207,9 @@ function cycleSubtaskStatus(taskId, subtaskId) {
       })
     };
   });
+  // After cycling a subtask status, auto-promote parent if any subtask is doing
+  const parent = tasks.find(t => t.id === taskId);
+  if (parent) autoPromoteParentStatus(parent);
   save();
 }
 
@@ -213,7 +229,22 @@ function deleteSubtask(taskId, subtaskId) {
       subtasks: t.subtasks.filter(s => s.id !== subtaskId)
     };
   });
+  // After removing a subtask, ensure parent status is promoted if any remaining subtasks are doing
+  const parent = tasks.find(t => t.id === taskId);
+  if (parent) autoPromoteParentStatus(parent);
   save();
+}
+
+// Auto-promote parent task status to 'doing' when any subtask is 'doing'
+function autoPromoteParentStatus(task) {
+  if (!task) return false;
+  if (task.done) return false; // do not change completed tasks
+  const hasDoing = Array.isArray(task.subtasks) && task.subtasks.some(s => s.status === 'doing');
+  if (hasDoing && task.status !== 'doing') {
+    task.status = 'doing';
+    return true;
+  }
+  return false;
 }
 
 function updateText(id, newText) {
@@ -367,6 +398,75 @@ function renderDaily() {
 }
 
 // --------------------------------------
+// WORKING (Doing) DRAWER
+// --------------------------------------
+function updateWorkingDrawer() {
+  if (!workingCountEl || !workingDrawerList) return;
+  const items = tasks.filter(t => t.status === "doing" || (Array.isArray(t.subtasks) && t.subtasks.some(s => s.status === "doing")));
+  workingCountEl.textContent = String(items.length);
+  workingDrawerList.innerHTML = "";
+  if (!items.length) {
+    workingDrawerList.innerHTML = '<li class="daily-empty">Nothing in progress yet.</li>';
+    return;
+  }
+
+  items.forEach(t => {
+    const li = document.createElement('li');
+    li.dataset.id = t.id;
+
+    const parentDiv = document.createElement('div');
+    parentDiv.style.display = 'flex';
+    parentDiv.style.alignItems = 'center';
+    parentDiv.style.gap = '8px';
+
+    const title = document.createElement('div');
+    title.className = 'task-text';
+    title.textContent = t.text;
+    parentDiv.appendChild(title);
+
+    if (t.status === 'doing') {
+      const badge = document.createElement('span');
+      badge.style.fontSize = '12px';
+      badge.style.color = 'var(--text-muted)';
+      badge.textContent = '(In progress)';
+      parentDiv.appendChild(badge);
+    }
+
+    li.appendChild(parentDiv);
+
+    const doingSubs = Array.isArray(t.subtasks) ? t.subtasks.filter(s => s.status === 'doing') : [];
+    if (doingSubs.length) {
+      const ul = document.createElement('ul');
+      ul.style.margin = '6px 0 0 12px';
+      ul.style.padding = '0';
+      ul.style.listStyle = 'none';
+      doingSubs.forEach(s => {
+        const sLi = document.createElement('li');
+        sLi.style.fontSize = '13px';
+        sLi.style.color = 'var(--text-muted)';
+        sLi.textContent = '- ' + s.text;
+        ul.appendChild(sLi);
+      });
+      li.appendChild(ul);
+    }
+
+    // Click behavior: close drawer, scroll to task, flash highlight
+    li.style.cursor = 'pointer';
+    li.addEventListener('click', () => {
+      if (workingDrawer) workingDrawer.classList.remove('open');
+      const target = document.getElementById(`task-${t.id}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('flash-focus');
+        setTimeout(() => target.classList.remove('flash-focus'), 700);
+      }
+    });
+
+    workingDrawerList.appendChild(li);
+  });
+}
+
+// --------------------------------------
 // MAIN RENDER
 // --------------------------------------
 function render() {
@@ -423,6 +523,7 @@ function render() {
     const li = document.createElement("li");
     li.className = "task task-card" + (t.done ? " done" : "");
     li.dataset.id = t.id; // needed for drag & drop
+    li.id = `task-${t.id}`; // stable DOM hook for working drawer navigation
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -645,6 +746,8 @@ function render() {
   }
   lastAddedSubtaskId = null;
   lastAddedSubtaskTaskId = null;
+  // Update the doing/working drawer badge & list
+  if (typeof updateWorkingDrawer === "function") updateWorkingDrawer();
 }
 
 // --------------------------------------
@@ -917,6 +1020,20 @@ closeDailyDrawerBtn.addEventListener("click", () => {
   dailyDrawer.classList.remove("open");
 });
 
+// Working drawer
+if (openWorkingDrawerBtn) {
+  openWorkingDrawerBtn.addEventListener("click", () => {
+    if (workingDrawer) workingDrawer.classList.add("open");
+    updateWorkingDrawer();
+  });
+}
+
+if (closeWorkingDrawerBtn) {
+  closeWorkingDrawerBtn.addEventListener("click", () => {
+    if (workingDrawer) workingDrawer.classList.remove("open");
+  });
+}
+
 // Sort select
 sortSelect.addEventListener("change", () => {
   sortMode = sortSelect.value;
@@ -937,6 +1054,49 @@ themeToggle.addEventListener("click", () => {
 // --------------------------------------
 applySavedTheme();
 loadTasks();
+// If there are no saved tasks, populate a small demo dataset to exercise the UI
+if (!Array.isArray(tasks) || tasks.length === 0) {
+  const demoTasks = [
+    {
+      id: "demo-1",
+      text: "Prepare presentation",
+      done: false,
+      status: "doing",
+      category: "Work",
+      dueDate: "2026-01-10",
+      isDaily: false,
+      subtasks: [
+        { id: "demo-1-1", text: "Create slides", done: false, status: "doing" },
+        { id: "demo-1-2", text: "Practice talk", done: false, status: "todo" }
+      ]
+    },
+    {
+      id: "demo-2",
+      text: "Grocery shopping",
+      done: false,
+      status: "todo",
+      category: "Home",
+      dueDate: "",
+      isDaily: false,
+      subtasks: [
+        { id: "demo-2-1", text: "Buy milk", done: false, status: "doing" },
+        { id: "demo-2-2", text: "Buy bread", done: false, status: "todo" }
+      ]
+    },
+    {
+      id: "demo-3",
+      text: "Read research paper",
+      done: false,
+      status: "todo",
+      category: "Personal",
+      dueDate: "",
+      isDaily: true,
+      subtasks: []
+    }
+  ];
+  tasks = normalizeTasks(demoTasks);
+  save();
+}
 render();
 initSortable();
 

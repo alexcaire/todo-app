@@ -785,6 +785,66 @@ li.task.done .task-text{
   padding:0;
 }
 
+/* Working drawer (reuse daily drawer styles) */
+#workingDrawer{
+  position:fixed;
+  top:0;
+  right:-360px;
+  width:320px;
+  height:100vh;
+  background:var(--card);
+  border-left:1px solid var(--border);
+  box-shadow:-10px 0 24px rgba(15,23,42,0.12);
+  padding:24px 22px;
+  transition:right .35s ease;
+  z-index:30;
+}
+
+#workingDrawer.open{
+  right:0;
+}
+
+#workingDrawerList{
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+
+/* Each working item card */
+#workingDrawerList li{
+  background:var(--card-soft);
+  border-radius:14px;
+  border:1px solid var(--border);
+  padding:12px 12px;
+  margin-bottom:12px;
+  font-size:14px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+/* small badge used in header button */
+.badge{
+  display:inline-block;
+  background:var(--primary-soft);
+  color:var(--primary);
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:12px;
+  margin-left:8px;
+}
+
+/* subtle flash when focusing a task */
+.flash-focus{
+  animation: flashFocus 700ms ease-in-out;
+}
+
+@keyframes flashFocus{
+  0%{ box-shadow: 0 0 0 0 rgba(59,123,224,0.18); }
+  30%{ box-shadow: 0 8px 24px rgba(59,123,224,0.10); }
+  100%{ box-shadow: none; }
+}
+
 /* Each daily task in its own box */
 #dailyDrawerList li{
   background:var(--card-soft);
