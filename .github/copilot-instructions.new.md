@@ -18,12 +18,12 @@ This repo is a small single-page task manager. The goal of this file is to give 
 
 - Task shape (as used in `main.js`): `{ id, text, done, category, dueDate, isDaily, subtasks[] }`. `subtasks` items: `{ id, text, done }`.
 - Key helpers: `normalizeTasks(list)` (sanitizes stored shape), `getStorageKey()` (per-user key), `escapeHtml()` (prevents HTML injection in `render()`).
-- Sorting: `sortMode` values — `manual`, `dueAsc`, `dueDesc`, `newest`, `oldest`, `alpha`, `dailyTop` — affect only the view order; only `manual` writes order back to `tasks` on drag end.
+- Sorting: `sortMode` values — `manual`, `dueAsc`, `dueDesc`, `newest`, `oldest`, `alpha`, `dailyTop` — affect only the view order except `manual` which writes order back to `tasks` on drag end.
 
 ## Auth & storage behaviors to preserve
 
-- Auth flow is in `main.js` via `onAuth(user)`; when the active user changes the code calls `loadTasks()` then `render()` so data switches to the user's key. Preserve this sequence.
-- Storage migration: `normalizeTasks()` accepts legacy or malformed shapes. If you change the stored schema, implement a migration in `loadTasks()` that preserves older keys.
+- Auth flow is in `main.js` via `onAuth(user)`; when active user changes the code calls `loadTasks()` and `render()` so data switches to the user's key. Preserve this sequence.
+- Storage migration: `normalizeTasks()` accepts legacy or malformed shapes. If you change stored schema, implement a migration in `loadTasks()` that preserves older keys.
 
 ## Developer workflows (run & test locally)
 
@@ -35,7 +35,7 @@ python -m http.server 8000
 # open http://localhost:8000/index.html
 ```
 
-Or open `index.html` directly (some browser APIs behave differently under `file://`).
+Or open `index.html` directly (some APIs behave differently under `file://`).
 
 Manual checks useful for PRs: add/edit/delete tasks, toggle daily, add subtasks, switch filters, and verify per-user separation of `localStorage` keys.
 
@@ -51,4 +51,4 @@ Manual checks useful for PRs: add/edit/delete tasks, toggle daily, add subtasks,
 - Change persistence key/schema: update `STORAGE_KEY_BASE` in `main.js` and add migration logic to `loadTasks()`.
 - Extract JS to module(s): move functions from `main.js` to new files, keep `initAuthUI()` call on DOM ready, and preserve exported `onAuth` usage from `firebase.js`.
 
-If you'd like, I can expand this file with suggested test cases, a refactor checklist, or automated migration examples.
+If you'd like, I can replace the original file with this content or expand sections (tests, CI, migration examples).

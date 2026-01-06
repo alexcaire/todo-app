@@ -11,17 +11,22 @@ let accountMenuOpen = false;
 
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
-  return list.map(t => ({
-    ...t,
-    subtasks: Array.isArray(t.subtasks)
-      ? t.subtasks.map(sub => ({
-          ...sub,
-          id: (sub.id || `${Date.now()}-${Math.random().toString(16).slice(2, 6)}`).toString(),
-          text: sub.text || "",
-          done: !!sub.done
-        }))
-      : []
-  }));
+  return list.map(t => {
+    const status = t.status || (t.done ? "done" : "todo");
+    return {
+      ...t,
+      status,
+      subtasks: Array.isArray(t.subtasks)
+        ? t.subtasks.map(sub => ({
+            ...sub,
+            status: sub.status || (sub.done ? "done" : "todo"),
+            id: (sub.id || `${Date.now()}-${Math.random().toString(16).slice(2, 6)}`).toString(),
+            text: sub.text || "",
+            done: !!sub.done
+          }))
+        : []
+    };
+  });
 }
 
 function getStorageKey() {
@@ -91,6 +96,7 @@ function addTask(text, category, dueDate, isDaily) {
     id: Date.now().toString(),
     text: text.trim(),
     done: false,
+    status: "todo",
     category,
     dueDate: dueDate || "",
     isDaily: !!isDaily || dueIsToday,
@@ -112,7 +118,8 @@ function addSubtask(taskId, text) {
           {
             id: (newId = `${Date.now()}-${Math.random().toString(16).slice(2, 6)}`),
             text: trimmed,
-            done: false
+            done: false,
+            status: "todo"
           }
         ]
       }
@@ -128,7 +135,25 @@ function addSubtask(taskId, text) {
 // TOGGLES
 // --------------------------------------
 function toggleDone(id) {
-  tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+  tasks = tasks.map(t => {
+    if (t.id === id) {
+      const done = !t.done;
+      return { ...t, done, status: done ? "done" : "todo" };
+    }
+    return t;
+  });
+  save();
+}
+
+function cycleTaskStatus(id) {
+  tasks = tasks.map(t => {
+    if (t.id === id) {
+      const cycle = { "todo": "doing", "doing": "done", "done": "todo" };
+      const newStatus = cycle[t.status || "todo"];
+      return { ...t, status: newStatus, done: newStatus === "done" };
+    }
+    return t;
+  });
   save();
 }
 
@@ -142,9 +167,31 @@ function toggleSubtask(taskId, subtaskId) {
     if (t.id !== taskId) return t;
     return {
       ...t,
-      subtasks: t.subtasks.map(s =>
-        s.id === subtaskId ? { ...s, done: !s.done } : s
-      )
+      subtasks: t.subtasks.map(s => {
+        if (s.id === subtaskId) {
+          const done = !s.done;
+          return { ...s, done, status: done ? "done" : "todo" };
+        }
+        return s;
+      })
+    };
+  });
+  save();
+}
+
+function cycleSubtaskStatus(taskId, subtaskId) {
+  tasks = tasks.map(t => {
+    if (t.id !== taskId) return t;
+    return {
+      ...t,
+      subtasks: t.subtasks.map(s => {
+        if (s.id === subtaskId) {
+          const cycle = { "todo": "doing", "doing": "done", "done": "todo" };
+          const newStatus = cycle[s.status || "todo"];
+          return { ...s, status: newStatus, done: newStatus === "done" };
+        }
+        return s;
+      })
     };
   });
   save();
@@ -329,9 +376,9 @@ function render() {
 
   // Filters
   if (statusFilter === "active") {
-    shown = shown.filter(t => !t.done);
+    shown = shown.filter(t => t.status !== "done");
   } else if (statusFilter === "done") {
-    shown = shown.filter(t => t.done);
+    shown = shown.filter(t => t.status === "done");
   }
 
   if (categoryFilter !== "all") {
@@ -456,6 +503,21 @@ function render() {
     controls.appendChild(editBtn);
     controls.appendChild(delBtn);
 
+    const statusBtn = document.createElement("button");
+    statusBtn.className = "icon-btn status-btn";
+    statusBtn.setAttribute("aria-label", "Cycle task status");
+    statusBtn.title = "Cycle status";
+    statusBtn.textContent = "⏳";
+    statusBtn.addEventListener("click", () => cycleTaskStatus(t.id));
+    controls.insertBefore(statusBtn, controls.firstChild);
+
+    if (t.status === "doing") {
+      const progressLine = document.createElement("div");
+      progressLine.className = "progress-line";
+      progressLine.setAttribute("aria-hidden", "true");
+      li.appendChild(progressLine);
+    }
+
     li.appendChild(checkbox);
     li.appendChild(textDiv);
     li.appendChild(catSpan);
@@ -485,6 +547,20 @@ function render() {
       subText.className = "subtask-text";
       subText.textContent = sub.text;
 
+      if (sub.status === "doing") {
+        const progressLine = document.createElement("div");
+        progressLine.className = "progress-line";
+        progressLine.setAttribute("aria-hidden", "true");
+        row.appendChild(progressLine);
+      }
+
+      const subStatusBtn = document.createElement("button");
+      subStatusBtn.className = "icon-btn subtask-status-btn";
+      subStatusBtn.setAttribute("aria-label", "Cycle subtask status");
+      subStatusBtn.title = "Cycle status";
+      subStatusBtn.textContent = "⏳";
+      subStatusBtn.addEventListener("click", () => cycleSubtaskStatus(t.id, sub.id));
+
       const subDelete = document.createElement("button");
       subDelete.className = "icon-btn subtask-delete";
       subDelete.setAttribute("aria-label", "Delete subtask");
@@ -493,6 +569,7 @@ function render() {
 
       row.appendChild(subCheck);
       row.appendChild(subText);
+      row.appendChild(subStatusBtn);
       row.appendChild(subDelete);
       subtasksList.appendChild(row);
     };
@@ -559,7 +636,7 @@ function render() {
   });
 
   countEl.textContent = tasks.length.toString();
-  activeCountEl.textContent = tasks.filter(t => !t.done).length.toString();
+  activeCountEl.textContent = tasks.filter(t => t.status !== "done").length.toString();
 
   if (lastAddedSubtaskTaskId) {
     const li = listEl.querySelector(`li.task[data-id="${lastAddedSubtaskTaskId}"]`);

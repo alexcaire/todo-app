@@ -310,6 +310,11 @@ input[type="date"]{
   border:1px solid var(--border);
   background:var(--card-soft);
   font-size:14px;
+  color:var(--text-main);
+}
+
+input[type="text"]::placeholder{
+  color:var(--text-muted);
 }
 
 input[type="text"]:focus,
@@ -635,6 +640,9 @@ li.task.done .task-text{
   align-items:center;
   gap:10px;
   font-size:13px;
+  min-width:0;
+  position:relative;
+  padding-bottom:4px;
 }
 
 .subtask-row.done .subtask-text{
@@ -651,6 +659,10 @@ li.task.done .task-text{
 .subtask-text{
   flex:1;
   word-break:break-word;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .subtask-delete{
@@ -1094,4 +1106,44 @@ li.task.done .task-text{
 .task-card > .subtask-fab-small:active {
   transform: scale(.9) !important;
   background: #1E40AF !important;
+}
+@keyframes progressMove {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.progress-line {
+  height: 3px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.10);
+  margin: 0;
+  position: absolute;
+  overflow: hidden;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+}
+
+.progress-line::after {
+  content: "";
+  position: absolute;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.12);
+  animation: progressMove 1.3s linear infinite;
+  border-radius: 999px;
+}
+
+body.dark .progress-line {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+body.dark .progress-line::after {
+  background: rgba(255, 255, 255, 0.12);
 }
