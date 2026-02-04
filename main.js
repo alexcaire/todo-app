@@ -12,6 +12,9 @@ let accountMenuOpen = false;
 
 let tasksUnsubscribe = null;
 let isRemoteUpdate = false;
+let lastSyncAt = null;
+let lastSyncError = "";
+let listenerActive = false;
 
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
@@ -107,6 +110,9 @@ const accountChip = document.getElementById("accountChip");
 const accountMenu = document.getElementById("accountMenu");
 const accountMenuSignOut = document.getElementById("accountMenuSignOut");
 const accountMenuCopyEmail = document.getElementById("accountMenuCopyEmail");
+const syncStatusEl = document.getElementById("syncStatus");
+const debugPanel = document.getElementById("debugPanel");
+const syncRefreshBtn = document.getElementById("syncRefreshBtn");
 
 // --------------------------------------
 // SAVE
@@ -135,6 +141,8 @@ function startRemoteSync(userId) {
   if (!userId) return;
   if (tasksUnsubscribe) tasksUnsubscribe();
   let firstSnapshot = true;
+  listenerActive = true;
+  setSyncStatus(navigator.onLine ? "Syncing" : "Offline", navigator.onLine ? "is-syncing" : "is-error");
   tasksUnsubscribe = onTaskList(userId, remoteTasks => {
     const normalizedRemote = normalizeTasks(remoteTasks);
     if (firstSnapshot) {
@@ -162,8 +170,13 @@ function startRemoteSync(userId) {
     tasks = normalizedRemote;
     render();
     isRemoteUpdate = false;
+    lastSyncAt = new Date();
+    lastSyncError = "";
+    setSyncStatus("Synced", "is-synced");
   }, err => {
     console.error("[Firestore] sync error", err);
+    lastSyncError = err && err.message ? err.message : "unknown";
+    setSyncStatus("Sync error", "is-error");
   });
 }
 function stopRemoteSync() {
@@ -171,6 +184,41 @@ function stopRemoteSync() {
     tasksUnsubscribe();
     tasksUnsubscribe = null;
   }
+  listenerActive = false;
+  updateDebugPanel();
+}
+
+function setSyncStatus(label, state) {
+  if (!syncStatusEl) return;
+  syncStatusEl.textContent = label;
+  syncStatusEl.classList.remove("is-syncing", "is-synced", "is-error");
+  if (state) syncStatusEl.classList.add(state);
+  if (lastSyncAt) {
+    syncStatusEl.title = "Last sync: " + lastSyncAt.toLocaleString();
+  } else {
+    syncStatusEl.title = "";
+  }
+  updateDebugPanel();
+}
+
+function updateDebugPanel() {
+  if (!debugPanel) return;
+  const uid = currentUser ? currentUser.uid : "none";
+  const email = currentUser ? (currentUser.email || currentUser.displayName || "unknown") : "signed out";
+  const status = syncStatusEl ? syncStatusEl.textContent : "unknown";
+  const lastSync = lastSyncAt ? lastSyncAt.toLocaleTimeString() : "n/a";
+  const error = lastSyncError || "none";
+  debugPanel.hidden = status === "Synced";
+  if (debugPanel.hidden) return;
+  debugPanel.innerHTML = [
+    "<strong>Sync Debug</strong>",
+    `User: ${email}`,
+    `UID: ${uid}`,
+    `Listener: ${listenerActive ? "on" : "off"}`,
+    `Status: ${status}`,
+    `Last sync: ${lastSync}`,
+    `Last error: ${error}`
+  ].join("<br>");
 }
 // --------------------------------------
 // ADD TASK
@@ -1037,17 +1085,19 @@ function initAuthUI() {
     activeUserId = newUserId;
     currentUser = user || null;
     closeAccountMenu();
-    if (currentUser) {
-      renderAccountChipSignedIn(currentUser);
-      tasks = [];
-      render();
-      startRemoteSync(currentUser.uid);
-    } else {
-      renderAccountChipSignedOut();
-      stopRemoteSync();
-      loadTasks();
-      render();
-    }
+      if (currentUser) {
+        renderAccountChipSignedIn(currentUser);
+        tasks = [];
+        render();
+        setSyncStatus(navigator.onLine ? "Syncing" : "Offline", navigator.onLine ? "is-syncing" : "is-error");
+        startRemoteSync(currentUser.uid);
+      } else {
+        renderAccountChipSignedOut();
+        stopRemoteSync();
+        loadTasks();
+        render();
+        setSyncStatus("Local", "");
+      }
   });
 }
 
@@ -1130,6 +1180,39 @@ themeToggle.addEventListener("click", () => {
   localStorage.setItem("theme", isDark ? "dark" : "light");
   updateThemeButton();
 });
+
+// Network status
+window.addEventListener("online", () => {
+  if (currentUser) {
+    setSyncStatus("Syncing", "is-syncing");
+    startRemoteSync(currentUser.uid);
+  } else {
+    setSyncStatus("Local", "");
+  }
+});
+
+window.addEventListener("offline", () => {
+  if (currentUser) {
+    lastSyncError = "offline";
+    setSyncStatus("Offline", "is-error");
+  }
+});
+
+if (syncRefreshBtn) {
+  syncRefreshBtn.addEventListener("click", () => {
+    if (!currentUser) {
+      setSyncStatus("Local", "");
+      return;
+    }
+    if (navigator.onLine) {
+      setSyncStatus("Syncing", "is-syncing");
+      startRemoteSync(currentUser.uid);
+    } else {
+      lastSyncError = "offline";
+      setSyncStatus("Offline", "is-error");
+    }
+  });
+}
 
 // --------------------------------------
 // INITIALIZE

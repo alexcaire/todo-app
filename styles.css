@@ -127,10 +127,97 @@ body{
 }
 
 .header-actions{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  position:relative;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    position:relative;
+}
+
+.sync-controls{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.sync-refresh-btn{
+    width:32px;
+    height:32px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:var(--chip-bg);
+    color:var(--muted);
+    font-size:14px;
+    line-height:1;
+}
+
+.sync-refresh-btn:hover{
+    color:var(--text);
+    border-color:var(--accent);
+}
+
+.sync-status{
+    font-size:12px;
+    letter-spacing:0.02em;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:var(--chip-bg);
+    color:var(--muted);
+    text-transform:uppercase;
+}
+
+.sync-status.is-syncing{
+    color:#8a5a00;
+    border-color:rgba(247,180,67,0.4);
+    background:rgba(247,180,67,0.12);
+}
+
+.sync-status.is-syncing::after{
+    content:"";
+    display:inline-block;
+    width:10px;
+    height:10px;
+    margin-left:8px;
+    border-radius:999px;
+    border:2px solid currentColor;
+    border-top-color:transparent;
+    animation:syncSpin 0.9s linear infinite;
+    vertical-align:-2px;
+}
+
+.sync-status.is-synced{
+    color:#0b6b3a;
+    border-color:rgba(46,196,182,0.35);
+    background:rgba(46,196,182,0.12);
+}
+
+.sync-status.is-error{
+    color:#8d1d1d;
+    border-color:rgba(255,107,107,0.4);
+    background:rgba(255,107,107,0.12);
+}
+
+@keyframes syncSpin{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+}
+
+.debug-panel{
+    margin-top:12px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.4;
+    display:grid;
+    gap:4px;
+}
+
+.debug-panel strong{
+    color:var(--text);
+    font-weight:600;
 }
 
 .account-wrap{

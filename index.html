@@ -33,6 +33,12 @@
         </div>
 
         <div class="header-actions">
+          <div class="sync-controls">
+            <div id="syncStatus" class="sync-status" aria-live="polite">Local</div>
+            <button id="syncRefreshBtn" class="icon-btn sync-refresh-btn" type="button" aria-label="Refresh sync" title="Refresh sync">
+              ↻
+            </button>
+          </div>
           <button id="themeToggleBtn" class="icon-btn theme-toggle-btn" aria-label="Toggle dark mode">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -133,6 +139,7 @@
       <button id="clearDone" class="link-btn">Clear completed</button>
     </div>
 
+    <div id="debugPanel" class="debug-panel" aria-live="polite" hidden></div>
   </div>
 
   <!-- DAILY DRAWER -->
