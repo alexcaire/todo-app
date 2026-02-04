@@ -1,13 +1,17 @@
-﻿import { signIn, signOutUser, onAuth } from "./firebase.js";
+﻿import { signIn, signOutUser, onAuth, onTaskList, saveTaskList } from "./firebase.js";
 
 // --------------------------------------
 // STORAGE
 // --------------------------------------
 const STORAGE_KEY_BASE = "todo_tasks";
+const MIGRATION_KEY_BASE = "todo_migrated";
 
 let activeUserId = null;
 let currentUser = null;
 let accountMenuOpen = false;
+
+let tasksUnsubscribe = null;
+let isRemoteUpdate = false;
 
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
@@ -32,6 +36,32 @@ function normalizeTasks(list) {
 function getStorageKey() {
   const key = activeUserId ? `${STORAGE_KEY_BASE}_${activeUserId}` : `${STORAGE_KEY_BASE}_guest`;
   return key;
+}
+
+function getMigrationKey(userId) {
+  return `${MIGRATION_KEY_BASE}_${userId}`;
+}
+
+function hasMigrated(userId) {
+  return localStorage.getItem(getMigrationKey(userId)) === "1";
+}
+
+function markMigrated(userId) {
+  localStorage.setItem(getMigrationKey(userId), "1");
+}
+
+function loadGuestTasks() {
+  const key = `${STORAGE_KEY_BASE}_guest`;
+  try {
+    return normalizeTasks(JSON.parse(localStorage.getItem(key) || "[]"));
+  } catch (err) {
+    console.warn("[Storage] failed to parse guest tasks", err);
+    return [];
+  }
+}
+
+function clearGuestTasks() {
+  localStorage.removeItem(`${STORAGE_KEY_BASE}_guest`);
 }
 
 let tasks = [];
@@ -82,9 +112,16 @@ const accountMenuCopyEmail = document.getElementById("accountMenuCopyEmail");
 // SAVE
 // --------------------------------------
 function save() {
-  const key = getStorageKey();
-  console.log(`[Storage] saving to key: ${key}`);
-  localStorage.setItem(key, JSON.stringify(tasks));
+  if (activeUserId) {
+    if (!isRemoteUpdate) {
+      saveTaskList(activeUserId, tasks)
+        .catch(err => console.error("[Firestore] save failed", err));
+    }
+  } else {
+    const key = getStorageKey();
+    console.log("[Storage] saving to key: " + key);
+    localStorage.setItem(key, JSON.stringify(tasks));
+  }
   render();
 }
 
@@ -94,6 +131,47 @@ function loadTasks() {
   tasks = normalizeTasks(JSON.parse(localStorage.getItem(key) || "[]"));
 }
 
+function startRemoteSync(userId) {
+  if (!userId) return;
+  if (tasksUnsubscribe) tasksUnsubscribe();
+  let firstSnapshot = true;
+  tasksUnsubscribe = onTaskList(userId, remoteTasks => {
+    const normalizedRemote = normalizeTasks(remoteTasks);
+    if (firstSnapshot) {
+      firstSnapshot = false;
+      const migrated = hasMigrated(userId);
+      const guestTasks = loadGuestTasks();
+      if (!migrated && normalizedRemote.length === 0 && guestTasks.length > 0) {
+        isRemoteUpdate = true;
+        tasks = guestTasks;
+        render();
+        isRemoteUpdate = false;
+        saveTaskList(userId, guestTasks)
+          .then(() => {
+            markMigrated(userId);
+            clearGuestTasks();
+          })
+          .catch(err => console.error("[Firestore] migration failed", err));
+        return;
+      }
+      if (!migrated) {
+        markMigrated(userId);
+      }
+    }
+    isRemoteUpdate = true;
+    tasks = normalizedRemote;
+    render();
+    isRemoteUpdate = false;
+  }, err => {
+    console.error("[Firestore] sync error", err);
+  });
+}
+function stopRemoteSync() {
+  if (tasksUnsubscribe) {
+    tasksUnsubscribe();
+    tasksUnsubscribe = null;
+  }
+}
 // --------------------------------------
 // ADD TASK
 // --------------------------------------
@@ -961,11 +1039,15 @@ function initAuthUI() {
     closeAccountMenu();
     if (currentUser) {
       renderAccountChipSignedIn(currentUser);
+      tasks = [];
+      render();
+      startRemoteSync(currentUser.uid);
     } else {
       renderAccountChipSignedOut();
+      stopRemoteSync();
+      loadTasks();
+      render();
     }
-    loadTasks();
-    render();
   });
 }
 
@@ -1099,6 +1181,12 @@ if (!Array.isArray(tasks) || tasks.length === 0) {
 }
 render();
 initSortable();
+
+
+
+
+
+
 
 
 
