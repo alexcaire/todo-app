@@ -70,6 +70,11 @@ function clearGuestTasks() {
 let tasks = [];
 let lastAddedSubtaskId = null;
 let lastAddedSubtaskTaskId = null;
+let openTaskMenuId = null;
+let editingTaskId = null;
+let editingTaskText = "";
+let undoToastTimeoutId = null;
+let renderedTaskIds = new Set();
 
 let statusFilter = "all";
 let categoryFilter = "all";
@@ -90,7 +95,7 @@ const activeCountEl = document.getElementById("activeCount");
 const clearDoneBtn = document.getElementById("clearDone");
 
 const statusButtons = document.querySelectorAll(".filters .chip");
-const categoryButtons = document.querySelectorAll(".category-filters .chip");
+const categoryButtons = document.querySelectorAll(".category-filters .chip[data-category]");
 
 const dailyDrawer = document.getElementById("dailyDrawer");
 const dailyDrawerList = document.getElementById("dailyDrawerList");
@@ -113,6 +118,8 @@ const accountMenuCopyEmail = document.getElementById("accountMenuCopyEmail");
 const syncStatusEl = document.getElementById("syncStatus");
 const debugPanel = document.getElementById("debugPanel");
 const syncRefreshBtn = document.getElementById("syncRefreshBtn");
+const viewOptionsBtn = document.getElementById("viewOptionsBtn");
+const toolbarEl = document.getElementById("toolbar");
 
 // --------------------------------------
 // SAVE
@@ -294,8 +301,17 @@ function cycleTaskStatus(id) {
 }
 
 function toggleDaily(id) {
+  const targetTask = tasks.find(t => t.id === id);
+  if (!targetTask) return;
+  const wasDaily = !!targetTask.isDaily;
   tasks = tasks.map(t => t.id === id ? { ...t, isDaily: !t.isDaily } : t);
   save();
+  if (wasDaily) {
+    showUndoToast("Removed from daily.", () => {
+      tasks = tasks.map(t => t.id === id ? { ...t, isDaily: true } : t);
+      save();
+    });
+  }
 }
 
 function toggleSubtask(taskId, subtaskId) {
@@ -343,8 +359,22 @@ function cycleSubtaskStatus(taskId, subtaskId) {
 // DELETE / UPDATE
 // --------------------------------------
 function deleteTask(id) {
-  tasks = tasks.filter(t => t.id !== id);
-  save();
+  animateTaskExits([id], () => {
+    const index = tasks.findIndex(t => t.id === id);
+    if (index < 0) return;
+    const removedTask = tasks[index];
+    tasks = tasks.filter(t => t.id !== id);
+    if (editingTaskId === id) {
+      editingTaskId = null;
+      editingTaskText = "";
+    }
+    save();
+    showUndoToast("Task deleted.", () => {
+      const insertAt = Math.min(index, tasks.length);
+      tasks.splice(insertAt, 0, removedTask);
+      save();
+    });
+  });
 }
 
 function deleteSubtask(taskId, subtaskId) {
@@ -378,12 +408,56 @@ function updateText(id, newText) {
   save();
 }
 
+function updateDueDate(id, newDueDate) {
+  tasks = tasks.map(t => t.id === id ? { ...t, dueDate: newDueDate } : t);
+  save();
+}
+
 // --------------------------------------
 // CLEAR COMPLETED
 // --------------------------------------
 function clearDone() {
-  tasks = tasks.filter(t => !t.done);
-  save();
+  const removed = tasks
+    .map((task, index) => task.done ? { task, index } : null)
+    .filter(Boolean);
+  if (!removed.length) return;
+  const removedIds = removed.map(item => item.task.id);
+  animateTaskExits(removedIds, () => {
+    if (editingTaskId && removed.some(item => item.task.id === editingTaskId)) {
+      editingTaskId = null;
+      editingTaskText = "";
+    }
+    tasks = tasks.filter(t => !t.done);
+    save();
+    const count = removed.length;
+    showUndoToast(
+      count === 1 ? "Cleared 1 completed task." : `Cleared ${count} completed tasks.`,
+      () => {
+        removed.forEach(item => {
+          const insertAt = Math.min(item.index, tasks.length);
+          tasks.splice(insertAt, 0, item.task);
+        });
+        save();
+      }
+    );
+  });
+}
+
+function animateTaskExits(taskIds, onComplete) {
+  const nodes = taskIds
+    .map(id => document.getElementById(`task-${id}`))
+    .filter(Boolean);
+
+  if (!nodes.length) {
+    onComplete();
+    return;
+  }
+
+  nodes.forEach(node => {
+    node.classList.add("task-exit");
+  });
+
+  window.setTimeout(onComplete, 180);
 }
 
 // --------------------------------------
@@ -398,11 +472,34 @@ function setStatusFilter(filter) {
 }
 
 function setCategoryFilter(category) {
-  categoryFilter = category;
+  categoryFilter = category || "all";
   categoryButtons.forEach(btn =>
-    btn.classList.toggle("active", btn.dataset.category === category)
+    btn.classList.toggle("active", btn.dataset.category === categoryFilter)
   );
   render();
+}
+
+function setOptionsPanelOpen(isOpen) {
+  if (!toolbarEl || !viewOptionsBtn) return;
+  toolbarEl.classList.toggle("is-open", isOpen);
+  viewOptionsBtn.setAttribute("aria-expanded", String(isOpen));
+  viewOptionsBtn.textContent = isOpen ? "Hide options" : "View options";
+}
+
+function syncOptionsPanelToViewport() {
+  if (!toolbarEl || !viewOptionsBtn) return;
+  const isMobile = window.innerWidth <= 720;
+  const wasMobile = toolbarEl.dataset.mobileViewport === "1";
+
+  if (isMobile) {
+    toolbarEl.dataset.mobileViewport = "1";
+    if (!wasMobile) setOptionsPanelOpen(false);
+  } else {
+    toolbarEl.dataset.mobileViewport = "0";
+    toolbarEl.classList.add("is-open");
+    viewOptionsBtn.setAttribute("aria-expanded", "false");
+    viewOptionsBtn.textContent = "View options";
+  }
 }
 
 // --------------------------------------
@@ -427,6 +524,174 @@ function formatDate(dateStr) {
   if (!dateStr) return "";
   const [y, m, d] = dateStr.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function isValidDateInput(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(`${value}T00:00:00`);
+  return parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day;
+}
+
+function toLocalISODate(daysOffset = 0) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + daysOffset);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function showUndoToast(message, undoAction) {
+  const existing = document.getElementById("undoToast");
+  if (existing) existing.remove();
+  if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+
+  const toast = document.createElement("div");
+  toast.id = "undoToast";
+  toast.className = "undo-toast";
+
+  const text = document.createElement("span");
+  text.className = "undo-toast-text";
+  text.textContent = message;
+
+  const undoBtn = document.createElement("button");
+  undoBtn.type = "button";
+  undoBtn.className = "undo-toast-btn";
+  undoBtn.textContent = "Undo";
+  undoBtn.addEventListener("click", () => {
+    toast.remove();
+    if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+    undoAction();
+  });
+
+  toast.appendChild(text);
+  toast.appendChild(undoBtn);
+  document.body.appendChild(toast);
+
+  undoToastTimeoutId = window.setTimeout(() => {
+    toast.remove();
+    undoToastTimeoutId = null;
+  }, 5000);
+}
+
+function openDueDatePicker(initialValue, onSubmit) {
+  const overlay = document.createElement("div");
+  overlay.className = "date-picker-overlay";
+
+  const panel = document.createElement("div");
+  panel.className = "date-picker-panel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-label", "Edit due date");
+
+  const title = document.createElement("h3");
+  title.className = "date-picker-title";
+  title.textContent = "Select due date";
+
+  const inputEl = document.createElement("input");
+  inputEl.type = "date";
+  inputEl.className = "date-picker-input";
+  inputEl.value = initialValue || "";
+
+  const quickActions = document.createElement("div");
+  quickActions.className = "date-picker-shortcuts";
+
+  const todayBtn = document.createElement("button");
+  todayBtn.type = "button";
+  todayBtn.className = "date-picker-shortcut-btn";
+  todayBtn.textContent = "Today";
+
+  const tomorrowBtn = document.createElement("button");
+  tomorrowBtn.type = "button";
+  tomorrowBtn.className = "date-picker-shortcut-btn";
+  tomorrowBtn.textContent = "Tomorrow";
+
+  const nextWeekBtn = document.createElement("button");
+  nextWeekBtn.type = "button";
+  nextWeekBtn.className = "date-picker-shortcut-btn";
+  nextWeekBtn.textContent = "+7 days";
+
+  quickActions.appendChild(todayBtn);
+  quickActions.appendChild(tomorrowBtn);
+  quickActions.appendChild(nextWeekBtn);
+
+  const actions = document.createElement("div");
+  actions.className = "date-picker-actions";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "date-picker-btn";
+  cancelBtn.textContent = "Cancel";
+
+  const clearBtn = document.createElement("button");
+  clearBtn.type = "button";
+  clearBtn.className = "date-picker-btn";
+  clearBtn.textContent = "Clear";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "date-picker-btn primary";
+  saveBtn.textContent = "Save";
+
+  actions.appendChild(cancelBtn);
+  actions.appendChild(clearBtn);
+  actions.appendChild(saveBtn);
+
+  panel.appendChild(title);
+  panel.appendChild(inputEl);
+  panel.appendChild(quickActions);
+  panel.appendChild(actions);
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  const closePicker = () => {
+    document.removeEventListener("keydown", onKeyDown);
+    overlay.remove();
+  };
+
+  const submitValue = (value) => {
+    if (value && !isValidDateInput(value)) {
+      alert("Invalid date. Use YYYY-MM-DD.");
+      return;
+    }
+    closePicker();
+    onSubmit(value);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") closePicker();
+  };
+  document.addEventListener("keydown", onKeyDown);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closePicker();
+  });
+
+  cancelBtn.addEventListener("click", closePicker);
+  clearBtn.addEventListener("click", () => submitValue(""));
+  saveBtn.addEventListener("click", () => submitValue(inputEl.value.trim()));
+  todayBtn.addEventListener("click", () => submitValue(toLocalISODate(0)));
+  tomorrowBtn.addEventListener("click", () => submitValue(toLocalISODate(1)));
+  nextWeekBtn.addEventListener("click", () => submitValue(toLocalISODate(7)));
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitValue(inputEl.value.trim());
+    }
+  });
+
+  inputEl.focus();
+  if (typeof inputEl.showPicker === "function") {
+    try {
+      inputEl.showPicker();
+    } catch (_err) {
+      // ignore when the browser blocks programmatic picker opening
+    }
+  }
 }
 
 function isOverdue(dateStr) {
@@ -643,23 +908,139 @@ function render() {
   }
 
   // Render list
-  const isMobile = window.innerWidth < 480;
+
+  if (!shown.length) {
+    const emptyLi = document.createElement("li");
+    emptyLi.className = "list-empty";
+    const hasFilters = statusFilter !== "all" || categoryFilter !== "all";
+    const message = document.createElement("p");
+    message.className = "list-empty-copy";
+    message.textContent = hasFilters
+      ? "No tasks match your current view options."
+      : "No tasks yet. Start with one clear next action.";
+
+    const ctaBtn = document.createElement("button");
+    ctaBtn.type = "button";
+    ctaBtn.className = "primary";
+    ctaBtn.textContent = hasFilters ? "Clear view options" : "Add your first task";
+    ctaBtn.addEventListener("click", () => {
+      if (hasFilters) {
+        setStatusFilter("all");
+        setCategoryFilter("all");
+        return;
+      }
+      if (input) input.focus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    emptyLi.appendChild(message);
+    emptyLi.appendChild(ctaBtn);
+    listEl.appendChild(emptyLi);
+  }
+
+  const nextRenderedTaskIds = new Set();
 
   shown.forEach(t => {
     const li = document.createElement("li");
     li.className = "task task-card" + (t.done ? " done" : "");
     li.dataset.id = t.id; // needed for drag & drop
     li.id = `task-${t.id}`; // stable DOM hook for working drawer navigation
+    nextRenderedTaskIds.add(t.id);
+    if (!renderedTaskIds.has(t.id)) li.classList.add("task-enter");
+
+    const subtasks = Array.isArray(t.subtasks) ? t.subtasks : [];
+
+    const leading = document.createElement("div");
+    leading.className = "task-leading";
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = t.done;
     checkbox.addEventListener("change", () => toggleDone(t.id));
+    leading.appendChild(checkbox);
+
+    const statusBtn = document.createElement("button");
+    statusBtn.className = "icon-btn status-btn";
+    statusBtn.setAttribute("aria-label", "Cycle task status");
+    statusBtn.title = "Cycle status";
+    statusBtn.textContent =
+      t.status === "doing" ? "In progress" : t.status === "done" ? "Done" : "To do";
+    statusBtn.addEventListener("click", () => cycleTaskStatus(t.id));
+    leading.appendChild(statusBtn);
+
+    const content = document.createElement("div");
+    content.className = "task-content";
 
     const textDiv = document.createElement("div");
     textDiv.className = "task-text";
     textDiv.textContent = t.text;
+    content.appendChild(textDiv);
 
+    if (editingTaskId === t.id) {
+      const inlineEdit = document.createElement("div");
+      inlineEdit.className = "task-inline-edit";
+
+      const editInput = document.createElement("input");
+      editInput.type = "text";
+      editInput.className = "task-inline-input";
+      editInput.value = editingTaskText || t.text;
+      editInput.setAttribute("aria-label", "Edit task text");
+
+      const saveEditBtn = document.createElement("button");
+      saveEditBtn.type = "button";
+      saveEditBtn.className = "task-inline-btn primary";
+      saveEditBtn.textContent = "Save";
+
+      const cancelEditBtn = document.createElement("button");
+      cancelEditBtn.type = "button";
+      cancelEditBtn.className = "task-inline-btn";
+      cancelEditBtn.textContent = "Cancel";
+
+      const saveInlineEdit = () => {
+        const nextText = editInput.value.trim();
+        if (!nextText) {
+          alert("Task text cannot be empty.");
+          return;
+        }
+        editingTaskId = null;
+        editingTaskText = "";
+        updateText(t.id, nextText);
+      };
+
+      const cancelInlineEdit = () => {
+        editingTaskId = null;
+        editingTaskText = "";
+        render();
+      };
+
+      editInput.addEventListener("input", () => {
+        editingTaskText = editInput.value;
+      });
+      editInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveInlineEdit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancelInlineEdit();
+        }
+      });
+      saveEditBtn.addEventListener("click", saveInlineEdit);
+      cancelEditBtn.addEventListener("click", cancelInlineEdit);
+
+      inlineEdit.appendChild(editInput);
+      inlineEdit.appendChild(saveEditBtn);
+      inlineEdit.appendChild(cancelEditBtn);
+      content.appendChild(inlineEdit);
+
+      requestAnimationFrame(() => {
+        editInput.focus();
+        editInput.select();
+      });
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "task-meta";
     const catSpan = document.createElement("span");
     catSpan.className = "pill " + t.category;
     catSpan.textContent = t.category;
@@ -670,6 +1051,7 @@ function render() {
       tag.textContent = "Daily";
       catSpan.appendChild(tag);
     }
+    meta.appendChild(catSpan);
 
     const dueDiv = document.createElement("div");
     dueDiv.className = "due";
@@ -681,21 +1063,16 @@ function render() {
     } else {
       dueDiv.textContent = "No due date";
     }
+    meta.appendChild(dueDiv);
+
+    const subCount = document.createElement("span");
+    subCount.className = "task-subcount";
+    subCount.textContent = subtasks.length === 1 ? "1 subtask" : `${subtasks.length} subtasks`;
+    meta.appendChild(subCount);
+    content.appendChild(meta);
 
     const controls = document.createElement("div");
     controls.className = "controls";
-
-    const dailyBtn = document.createElement("button");
-    dailyBtn.className = "icon-btn";
-    dailyBtn.title = t.isDaily ? "Remove from daily" : "Add to daily";
-
-    const star = document.createElement("span");
-    star.className = "star-icon" + (t.isDaily ? " active" : "");
-    star.dataset.star = t.isDaily ? "on" : "off";
-    star.textContent = String.fromCharCode(0x2605);
-
-    dailyBtn.appendChild(star);
-    dailyBtn.addEventListener("click", () => toggleDaily(t.id));
 
     const editBtn = document.createElement("button");
     editBtn.className = "icon-btn edit-btn";
@@ -706,37 +1083,68 @@ function render() {
       </svg>
     `;
     editBtn.addEventListener("click", () => {
-      const newText = prompt("Edit task:", t.text);
-      if (newText && newText.trim()) updateText(t.id, newText.trim());
+      editingTaskId = editingTaskId === t.id ? null : t.id;
+      editingTaskText = editingTaskId === t.id ? t.text : "";
+      render();
     });
 
-    const delBtn = document.createElement("button");
-    delBtn.className = "icon-btn delete-btn";
-    delBtn.setAttribute("aria-label", "Delete task");
-    delBtn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="delete-icon">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M10 11v5" />
-        <path d="M14 11v5" />
-        <path d="M5 6l1 14h12l1-14" />
-        <path d="M9 6V4h6v2" />
-      </svg>
-    `;
-    delBtn.addEventListener("click", () => {
-      if (confirm("Delete this task?")) deleteTask(t.id);
-    });
-
-    controls.appendChild(dailyBtn);
     controls.appendChild(editBtn);
-    controls.appendChild(delBtn);
 
-    const statusBtn = document.createElement("button");
-    statusBtn.className = "icon-btn status-btn";
-    statusBtn.setAttribute("aria-label", "Cycle task status");
-    statusBtn.title = "Cycle status";
-    statusBtn.textContent = "⏳";
-    statusBtn.addEventListener("click", () => cycleTaskStatus(t.id));
-    controls.insertBefore(statusBtn, controls.firstChild);
+    const menuWrap = document.createElement("div");
+    menuWrap.className = "task-menu-wrap";
+
+    const moreBtn = document.createElement("button");
+    moreBtn.className = "icon-btn task-more-btn";
+    moreBtn.setAttribute("aria-label", "More task actions");
+    moreBtn.setAttribute("aria-expanded", openTaskMenuId === t.id ? "true" : "false");
+    moreBtn.textContent = "⋯";
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openTaskMenuId = openTaskMenuId === t.id ? null : t.id;
+      render();
+    });
+
+    const menu = document.createElement("div");
+    menu.className = "task-menu" + (openTaskMenuId === t.id ? " is-open" : "");
+    menu.setAttribute("aria-hidden", openTaskMenuId === t.id ? "false" : "true");
+    menu.addEventListener("click", (e) => e.stopPropagation());
+
+    const dailyMenuBtn = document.createElement("button");
+    dailyMenuBtn.type = "button";
+    dailyMenuBtn.className = "task-menu-item";
+    dailyMenuBtn.textContent = t.isDaily ? "Remove from daily" : "Add to daily";
+    dailyMenuBtn.addEventListener("click", () => {
+      openTaskMenuId = null;
+      toggleDaily(t.id);
+    });
+
+    const dueMenuBtn = document.createElement("button");
+    dueMenuBtn.type = "button";
+    dueMenuBtn.className = "task-menu-item";
+    dueMenuBtn.textContent = "Edit due date";
+    dueMenuBtn.addEventListener("click", () => {
+      openTaskMenuId = null;
+      render();
+      openDueDatePicker(t.dueDate || "", (selectedDueDate) => {
+        updateDueDate(t.id, selectedDueDate);
+      });
+    });
+
+    const deleteMenuBtn = document.createElement("button");
+    deleteMenuBtn.type = "button";
+    deleteMenuBtn.className = "task-menu-item danger";
+    deleteMenuBtn.textContent = "Delete task";
+    deleteMenuBtn.addEventListener("click", () => {
+      openTaskMenuId = null;
+      deleteTask(t.id);
+    });
+
+    menu.appendChild(dailyMenuBtn);
+    menu.appendChild(dueMenuBtn);
+    menu.appendChild(deleteMenuBtn);
+    menuWrap.appendChild(moreBtn);
+    menuWrap.appendChild(menu);
+    controls.appendChild(menuWrap);
 
     if (t.status === "doing") {
       const progressLine = document.createElement("div");
@@ -745,14 +1153,11 @@ function render() {
       li.appendChild(progressLine);
     }
 
-    li.appendChild(checkbox);
-    li.appendChild(textDiv);
-    li.appendChild(catSpan);
-    li.appendChild(dueDiv);
+    li.appendChild(leading);
+    li.appendChild(content);
     li.appendChild(controls);
 
     // Subtasks
-    const subtasks = Array.isArray(t.subtasks) ? t.subtasks : [];
     const subtasksSection = document.createElement("div");
     subtasksSection.className = "subtasks";
 
@@ -861,6 +1266,8 @@ function render() {
 
     listEl.appendChild(li);
   });
+
+  renderedTaskIds = nextRenderedTaskIds;
 
   countEl.textContent = tasks.length.toString();
   activeCountEl.textContent = tasks.filter(t => t.status !== "done").length.toString();
@@ -1111,6 +1518,28 @@ if (document.readyState === "loading") {
 // EVENTS
 // --------------------------------------
 
+if (viewOptionsBtn && toolbarEl) {
+  viewOptionsBtn.addEventListener("click", () => {
+    const shouldOpen = !toolbarEl.classList.contains("is-open");
+    setOptionsPanelOpen(shouldOpen);
+  });
+}
+
+window.addEventListener("resize", syncOptionsPanelToViewport);
+
+document.addEventListener("click", e => {
+  if (!openTaskMenuId) return;
+  if (e.target.closest(".task-menu-wrap")) return;
+  openTaskMenuId = null;
+  render();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || !openTaskMenuId) return;
+  openTaskMenuId = null;
+  render();
+});
+
 // Add form
 form.addEventListener("submit", e => {
   e.preventDefault();
@@ -1139,7 +1568,7 @@ categoryButtons.forEach(btn =>
 
 // Clear completed
 clearDoneBtn.addEventListener("click", () => {
-  if (confirm("Remove all completed tasks?")) clearDone();
+  clearDone();
 });
 
 // Daily drawer
@@ -1219,49 +1648,7 @@ if (syncRefreshBtn) {
 // --------------------------------------
 applySavedTheme();
 loadTasks();
-// If there are no saved tasks, populate a small demo dataset to exercise the UI
-if (!Array.isArray(tasks) || tasks.length === 0) {
-  const demoTasks = [
-    {
-      id: "demo-1",
-      text: "Prepare presentation",
-      done: false,
-      status: "doing",
-      category: "Work",
-      dueDate: "2026-01-10",
-      isDaily: false,
-      subtasks: [
-        { id: "demo-1-1", text: "Create slides", done: false, status: "doing" },
-        { id: "demo-1-2", text: "Practice talk", done: false, status: "todo" }
-      ]
-    },
-    {
-      id: "demo-2",
-      text: "Grocery shopping",
-      done: false,
-      status: "todo",
-      category: "Home",
-      dueDate: "",
-      isDaily: false,
-      subtasks: [
-        { id: "demo-2-1", text: "Buy milk", done: false, status: "doing" },
-        { id: "demo-2-2", text: "Buy bread", done: false, status: "todo" }
-      ]
-    },
-    {
-      id: "demo-3",
-      text: "Read research paper",
-      done: false,
-      status: "todo",
-      category: "Personal",
-      dueDate: "",
-      isDaily: true,
-      subtasks: []
-    }
-  ];
-  tasks = normalizeTasks(demoTasks);
-  save();
-}
+syncOptionsPanelToViewport();
 render();
 initSortable();
 
