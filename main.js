@@ -211,6 +211,13 @@ function startRemoteSync(userId) {
     lastSyncAt = new Date();
     lastSyncError = "";
     setSyncStatus("Synced", "is-synced");
+    // The reset at startup ran before auth resolved, against guest data and
+    // the guest key, and this snapshot has just replaced `tasks` wholesale.
+    // Re-run it now that activeUserId is set so recurring tasks actually
+    // reset for signed-in users. Must be outside the isRemoteUpdate guard
+    // above, or save() would drop the write instead of persisting it. The
+    // date stamp makes later snapshots a no-op, so this cannot loop.
+    checkDailyReset();
   }, err => {
     console.error("[Firestore] sync error", err);
     lastSyncError = err && err.message ? err.message : "unknown";
@@ -1581,6 +1588,9 @@ function initAuthUI() {
         renderAccountChipSignedOut();
         stopRemoteSync();
         loadTasks();
+        // Guest data may have gone stale while signed in, and the reset key
+        // is per-identity, so re-check against the guest key.
+        checkDailyReset();
         render();
         setSyncStatus("Local", "");
       }
