@@ -77,6 +77,7 @@ let openTaskMenuId = null;
 let editingTaskId = null;
 let editingTaskText = "";
 let undoToastTimeoutId = null;
+let pendingUndoCommit = null;
 let renderedTaskIds = new Set();
 
 let statusFilter = "all";
@@ -412,13 +413,12 @@ function deleteTask(id) {
       editingTaskId = null;
       editingTaskText = "";
     }
-    callHook("afterDeleteTask", id);
     save();
     showUndoToast("Task deleted.", () => {
       const insertAt = Math.min(index, tasks.length);
       tasks.splice(insertAt, 0, removedTask);
       save();
-    });
+    }, () => callHook("afterDeleteTask", id));
   });
 }
 
@@ -483,7 +483,8 @@ function clearDone() {
           tasks.splice(insertAt, 0, item.task);
         });
         save();
-      }
+      },
+      () => removedIds.forEach(id => callHook("afterDeleteTask", id))
     );
   });
 }
@@ -597,10 +598,27 @@ function toLocalISODate(daysOffset = 0) {
   return `${year}-${month}-${day}`;
 }
 
-function showUndoToast(message, undoAction) {
+// Runs the pending "deletion is final" callback, if the last undoable action
+// was never undone. Safe to call repeatedly; it only fires once.
+function commitPendingUndo() {
+  if (!pendingUndoCommit) return;
+  const commit = pendingUndoCommit;
+  pendingUndoCommit = null;
+  commit();
+}
+
+// `onCommit` runs only once the action can no longer be undone — the toast
+// expired, was superseded, or the page is closing. Use it for irreversible
+// cleanup so that Undo can restore state fully.
+function showUndoToast(message, undoAction, onCommit) {
+  // A previous action's Undo is no longer reachable, so finalize it now.
+  commitPendingUndo();
+
   const existing = document.getElementById("undoToast");
   if (existing) existing.remove();
   if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+
+  pendingUndoCommit = typeof onCommit === "function" ? onCommit : null;
 
   const toast = document.createElement("div");
   toast.id = "undoToast";
@@ -617,6 +635,8 @@ function showUndoToast(message, undoAction) {
   undoBtn.addEventListener("click", () => {
     toast.remove();
     if (undoToastTimeoutId) clearTimeout(undoToastTimeoutId);
+    undoToastTimeoutId = null;
+    pendingUndoCommit = null; // undone, so the cleanup must not run
     undoAction();
   });
 
@@ -627,8 +647,12 @@ function showUndoToast(message, undoAction) {
   undoToastTimeoutId = window.setTimeout(() => {
     toast.remove();
     undoToastTimeoutId = null;
+    commitPendingUndo();
   }, 5000);
 }
+
+// Don't strand cleanup if the page closes while a toast is still showing.
+window.addEventListener("beforeunload", commitPendingUndo);
 
 function openDueDatePicker(initialValue, onSubmit) {
   const overlay = document.createElement("div");
