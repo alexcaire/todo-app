@@ -88,7 +88,15 @@ Every state change calls `save()` → persists to storage → calls `render()`. 
 ### Recurring tasks and the daily reset
 `checkDailyReset()` (`main.js:156`) resets every task with `recurring: true` back to `status: "todo"` (and resets its subtasks) once per calendar day, stamping `todo_last_reset_{uid|guest}` in localStorage so it fires at most once daily.
 
-**Known gotcha:** it is called exactly once, at init (`main.js:1770`), *before* auth resolves. At that moment `activeUserId` is still `null`, so it operates on localStorage guest data and stamps the *guest* reset key — then the Firestore snapshot overwrites `tasks` wholesale. For signed-in users the recurring reset therefore may not apply to synced tasks. If you touch recurring behavior, this is the thing to fix: re-run the reset after the first snapshot lands.
+It runs at two points, and both are needed:
+
+1. **At init**, which covers guest users. Auth has not resolved yet, so `activeUserId` is `null` and this pass reads guest data and stamps the guest key.
+2. **After each Firestore snapshot is applied**, which covers signed-in users. The snapshot replaces `tasks` wholesale, so without this second call a signed-in user's recurring tasks would never reset — the init pass only ever saw guest data. This was a real bug (fixed in `fix-recurring-reset`).
+
+Two constraints if you move this code:
+
+- The post-snapshot call must sit **outside** the `isRemoteUpdate` guard. Inside it, `save()` skips the Firestore write, so the reset would apply in memory and silently vanish on reload.
+- That write triggers another snapshot, which calls the reset again. It terminates only because the per-day date stamp makes the second pass a no-op. Keep the stamp if you refactor.
 
 ### Search
 `searchQuery` filters on task text **and** subtask text (`main.js:925`), stacking with the status and category filters. Matches are highlighted via `highlightMatch()` — see the XSS note below. The empty state adapts, offering "Clear search" when a query is active.
