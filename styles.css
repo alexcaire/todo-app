@@ -851,6 +851,51 @@ body.dark .recurring-tag{
   color:#b91c1c;
 }
 
+.task-menu-item.is-active{
+  font-weight:600;
+}
+
+.task-menu-separator{
+  height:1px;
+  background:var(--border);
+  margin:4px 0;
+}
+
+/* Plugin badges */
+.plugin-badge{
+  border-radius:999px;
+  padding:2px 8px;
+  font-size:11px;
+  font-weight:500;
+  display:inline-block;
+}
+
+.priority-badge.priority-high{
+  background:#fee2e2;
+  color:#b91c1c;
+}
+.priority-badge.priority-medium{
+  background:#fef3c7;
+  color:#92400e;
+}
+.priority-badge.priority-low{
+  background:#dcfce7;
+  color:#166534;
+}
+
+body.dark .priority-badge.priority-high{
+  background:rgba(185,28,28,0.2);
+  color:#fca5a5;
+}
+body.dark .priority-badge.priority-medium{
+  background:rgba(180,120,0,0.18);
+  color:#fcd34d;
+}
+body.dark .priority-badge.priority-low{
+  background:rgba(22,101,52,0.2);
+  color:#86efac;
+}
+
 .date-picker-overlay{
   position:fixed;
   inset:0;
@@ -1482,7 +1527,7 @@ body.dark .recurring-tag{
   color:var(--text-muted);
 }
 
-/* hide browser's built-in ✕ on search inputs */
+/* hide browser's built-in x on search inputs */
 .search-input::-webkit-search-cancel-button,
 .search-input::-webkit-search-decoration{
   -webkit-appearance:none;
