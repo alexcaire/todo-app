@@ -1598,11 +1598,14 @@ function initAuthUI() {
   onAuth(user => {
     console.log("[Auth] UI update", user ? (user.displayName || user.email) : "Not signed in");
     const newUserId = user ? user.uid : null;
-    if (activeUserId !== newUserId) {
+    const userChanged = activeUserId !== newUserId;
+    if (userChanged) {
       console.log("[Auth] activeUserId changed", activeUserId, "->", newUserId);
     }
     activeUserId = newUserId;
     currentUser = user || null;
+    // Let plugins re-key or drop any per-user state before the next render.
+    if (userChanged) callHook("onUserChange", newUserId);
     closeAccountMenu();
       if (currentUser) {
         renderAccountChipSignedIn(currentUser);
@@ -1800,6 +1803,7 @@ if (syncRefreshBtn) {
 // PLUGIN API WIRING
 // --------------------------------------
 app.getTasks = () => tasks;
+app.getUserId = () => activeUserId;
 app.render = render;
 app.addTask = addTask;
 app.deleteTask = deleteTask;

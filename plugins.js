@@ -5,15 +5,30 @@
 const _hooks = new Map();
 const _plugins = [];
 
-// App API surface exposed to plugins. main.js populates this after its
-// functions are defined, so plugins must only call these inside hook handlers
-// (not at module evaluation time).
+// App API surface exposed to plugins. main.js replaces each of these once its
+// own functions are defined, which happens *after* plugin modules are
+// evaluated. Plugins must therefore only call app.* from inside hook handlers,
+// never at module top level.
+//
+// Until main.js wires them, each entry is a stub that throws a message saying
+// exactly what went wrong — otherwise a too-early call surfaces as an opaque
+// "app.render is not a function".
+function notWiredYet(name) {
+  return () => {
+    throw new Error(
+      `[Plugins] app.${name}() was called before the app finished initializing. ` +
+      `Call app.* from inside a hook handler, not at module top level.`
+    );
+  };
+}
+
 export const app = {
-  getTasks: null,
-  render: null,
-  addTask: null,
-  deleteTask: null,
-  save: null,
+  getTasks: notWiredYet("getTasks"),
+  getUserId: notWiredYet("getUserId"),
+  render: notWiredYet("render"),
+  addTask: notWiredYet("addTask"),
+  deleteTask: notWiredYet("deleteTask"),
+  save: notWiredYet("save"),
 };
 
 export function registerPlugin(plugin) {
