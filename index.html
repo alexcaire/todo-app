@@ -81,11 +81,34 @@
       <input id="dueInput" type="date" />
       <button type="submit" class="primary">+ Add</button>
 
-      <label class="daily-toggle">
-        <input id="dailyInput" type="checkbox" />
-        <span>Daily task</span>
-      </label>
+      <div class="form-toggles">
+        <label class="daily-toggle">
+          <input id="dailyInput" type="checkbox" />
+          <span>Daily task</span>
+        </label>
+        <label class="daily-toggle recurring-toggle">
+          <input id="recurringInput" type="checkbox" />
+          <span>↻ Recurring</span>
+        </label>
+      </div>
     </form>
+
+    <!-- SEARCH -->
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+        <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input
+        id="searchInput"
+        class="search-input"
+        type="search"
+        placeholder="Search tasks…"
+        autocomplete="off"
+        aria-label="Search tasks"
+      />
+      <button id="searchClear" class="search-clear" type="button" aria-label="Clear search" hidden>×</button>
+    </div>
 
     <!-- FILTERS + SORTING TOOLBAR -->
     <button
@@ -130,7 +153,7 @@
           <option value="manual">Manual (drag)</option>
           <option value="dueAsc">Due date ↑</option>
           <option value="dueDesc">Due date ↓</option>
-          <option value="newest">Newest → oldest</option>
+          <option value="newest" selected>Newest → oldest</option>
           <option value="oldest">Oldest → newest</option>
           <option value="alpha">A → Z</option>
           <option value="dailyTop">Daily on top</option>

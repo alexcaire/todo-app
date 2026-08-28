@@ -23,6 +23,7 @@ function normalizeTasks(list) {
     return {
       ...t,
       status,
+      recurring: !!t.recurring,
       subtasks: Array.isArray(t.subtasks)
         ? t.subtasks.map(sub => ({
             ...sub,
@@ -78,7 +79,8 @@ let renderedTaskIds = new Set();
 
 let statusFilter = "all";
 let categoryFilter = "all";
-let sortMode = "manual"; // manual, dueAsc, dueDesc, newest, oldest, alpha, dailyTop
+let searchQuery = "";
+let sortMode = "newest"; // manual, dueAsc, dueDesc, newest, oldest, alpha, dailyTop
 
 // --------------------------------------
 // ELEMENTS
@@ -89,6 +91,7 @@ const input = document.getElementById("taskInput");
 const categorySelect = document.getElementById("categorySelect");
 const dueInput = document.getElementById("dueInput");
 const dailyInput = document.getElementById("dailyInput");
+const recurringInput = document.getElementById("recurringInput");
 
 const countEl = document.getElementById("count");
 const activeCountEl = document.getElementById("activeCount");
@@ -96,6 +99,8 @@ const clearDoneBtn = document.getElementById("clearDone");
 
 const statusButtons = document.querySelectorAll(".filters .chip");
 const categoryButtons = document.querySelectorAll(".category-filters .chip[data-category]");
+const searchInput = document.getElementById("searchInput");
+const searchClearBtn = document.getElementById("searchClear");
 
 const dailyDrawer = document.getElementById("dailyDrawer");
 const dailyDrawerList = document.getElementById("dailyDrawerList");
@@ -142,6 +147,32 @@ function loadTasks() {
   const key = getStorageKey();
   console.log(`[Storage] loading from key: ${key}`);
   tasks = normalizeTasks(JSON.parse(localStorage.getItem(key) || "[]"));
+}
+
+function getResetKey() {
+  return activeUserId ? `todo_last_reset_${activeUserId}` : "todo_last_reset_guest";
+}
+
+function checkDailyReset() {
+  const today = toLocalISODate(0);
+  const lastReset = localStorage.getItem(getResetKey());
+  if (lastReset === today) return;
+
+  let changed = false;
+  tasks = tasks.map(t => {
+    if (!t.recurring) return t;
+    if (t.status === "todo" && !t.done) return t; // already reset
+    changed = true;
+    return {
+      ...t,
+      status: "todo",
+      done: false,
+      subtasks: t.subtasks.map(s => ({ ...s, status: "todo", done: false }))
+    };
+  });
+
+  localStorage.setItem(getResetKey(), today);
+  if (changed) save();
 }
 
 function startRemoteSync(userId) {
@@ -230,7 +261,7 @@ function updateDebugPanel() {
 // --------------------------------------
 // ADD TASK
 // --------------------------------------
-function addTask(text, category, dueDate, isDaily) {
+function addTask(text, category, dueDate, isDaily, isRecurring) {
   const dueIsToday = isToday(dueDate);
   tasks.unshift({
     id: Date.now().toString(),
@@ -240,8 +271,16 @@ function addTask(text, category, dueDate, isDaily) {
     category,
     dueDate: dueDate || "",
     isDaily: !!isDaily || dueIsToday,
+    recurring: !!isRecurring,
     subtasks: []
   });
+  save();
+}
+
+function toggleRecurring(id) {
+  const target = tasks.find(t => t.id === id);
+  if (!target) return;
+  tasks = tasks.map(t => t.id === id ? { ...t, recurring: !t.recurring } : t);
   save();
 }
 
@@ -518,6 +557,13 @@ function escapeHtml(text) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function highlightMatch(text, query) {
+  const safe = escapeHtml(text);
+  if (!query) return safe;
+  const safeQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(`(${safeQuery})`, "gi"), '<mark class="search-hi">$1</mark>');
 }
 
 function formatDate(dateStr) {
@@ -876,6 +922,14 @@ function render() {
     shown = shown.filter(t => t.category === categoryFilter);
   }
 
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    shown = shown.filter(t =>
+      t.text.toLowerCase().includes(q) ||
+      t.subtasks.some(s => s.text.toLowerCase().includes(q))
+    );
+  }
+
   // Sorting (does not change the underlying array = "view sort")
   switch (sortMode) {
     case "newest":
@@ -912,18 +966,27 @@ function render() {
   if (!shown.length) {
     const emptyLi = document.createElement("li");
     emptyLi.className = "list-empty";
-    const hasFilters = statusFilter !== "all" || categoryFilter !== "all";
+    const hasFilters = statusFilter !== "all" || categoryFilter !== "all" || searchQuery;
     const message = document.createElement("p");
     message.className = "list-empty-copy";
-    message.textContent = hasFilters
-      ? "No tasks match your current view options."
-      : "No tasks yet. Start with one clear next action.";
+    message.textContent = searchQuery
+      ? `No tasks match "${searchQuery}".`
+      : hasFilters
+        ? "No tasks match your current view options."
+        : "No tasks yet. Start with one clear next action.";
 
     const ctaBtn = document.createElement("button");
     ctaBtn.type = "button";
     ctaBtn.className = "primary";
-    ctaBtn.textContent = hasFilters ? "Clear view options" : "Add your first task";
+    ctaBtn.textContent = searchQuery ? "Clear search" : hasFilters ? "Clear view options" : "Add your first task";
     ctaBtn.addEventListener("click", () => {
+      if (searchQuery) {
+        searchInput.value = "";
+        searchQuery = "";
+        searchClearBtn.hidden = true;
+        render();
+        return;
+      }
       if (hasFilters) {
         setStatusFilter("all");
         setCategoryFilter("all");
@@ -973,7 +1036,7 @@ function render() {
 
     const textDiv = document.createElement("div");
     textDiv.className = "task-text";
-    textDiv.textContent = t.text;
+    textDiv.innerHTML = highlightMatch(t.text, searchQuery);
     content.appendChild(textDiv);
 
     if (editingTaskId === t.id) {
@@ -1049,7 +1112,13 @@ function render() {
       const tag = document.createElement("span");
       tag.className = "daily-tag";
       tag.textContent = "Daily";
-      catSpan.appendChild(tag);
+      meta.appendChild(tag);
+    }
+    if (t.recurring) {
+      const tag = document.createElement("span");
+      tag.className = "recurring-tag";
+      tag.textContent = "↻ Recurring";
+      meta.appendChild(tag);
     }
     meta.appendChild(catSpan);
 
@@ -1118,6 +1187,15 @@ function render() {
       toggleDaily(t.id);
     });
 
+    const recurringMenuBtn = document.createElement("button");
+    recurringMenuBtn.type = "button";
+    recurringMenuBtn.className = "task-menu-item";
+    recurringMenuBtn.textContent = t.recurring ? "Remove recurring" : "↻ Make recurring";
+    recurringMenuBtn.addEventListener("click", () => {
+      openTaskMenuId = null;
+      toggleRecurring(t.id);
+    });
+
     const dueMenuBtn = document.createElement("button");
     dueMenuBtn.type = "button";
     dueMenuBtn.className = "task-menu-item";
@@ -1140,6 +1218,7 @@ function render() {
     });
 
     menu.appendChild(dailyMenuBtn);
+    menu.appendChild(recurringMenuBtn);
     menu.appendChild(dueMenuBtn);
     menu.appendChild(deleteMenuBtn);
     menuWrap.appendChild(moreBtn);
@@ -1549,12 +1628,16 @@ form.addEventListener("submit", e => {
     input.value,
     categorySelect.value,
     dueInput.value,
-    dailyInput.checked
+    dailyInput.checked,
+    recurringInput.checked
   );
 
   input.value = "";
   dueInput.value = "";
   dailyInput.checked = false;
+  recurringInput.checked = false;
+  // Dismiss the soft keyboard on mobile after adding a task
+  input.blur();
 });
 
 // Filters
@@ -1594,6 +1677,43 @@ if (closeWorkingDrawerBtn) {
     if (workingDrawer) workingDrawer.classList.remove("open");
   });
 }
+
+// Swipe-to-close for drawers (right-swipe closes)
+function addSwipeToClose(el) {
+  if (!el) return;
+  let startX = 0;
+  let startY = 0;
+  el.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  el.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    // Only close if horizontal swipe is dominant and at least 60px right
+    if (dx > 60 && dy < 80) {
+      el.classList.remove("open");
+    }
+  }, { passive: true });
+}
+
+addSwipeToClose(dailyDrawer);
+addSwipeToClose(workingDrawer);
+
+// Search
+searchInput.addEventListener("input", () => {
+  searchQuery = searchInput.value.trim();
+  searchClearBtn.hidden = !searchQuery;
+  render();
+});
+
+searchClearBtn.addEventListener("click", () => {
+  searchInput.value = "";
+  searchQuery = "";
+  searchClearBtn.hidden = true;
+  searchInput.focus();
+  render();
+});
 
 // Sort select
 sortSelect.addEventListener("change", () => {
@@ -1648,6 +1768,7 @@ if (syncRefreshBtn) {
 // --------------------------------------
 applySavedTheme();
 loadTasks();
+checkDailyReset();
 syncOptionsPanelToViewport();
 render();
 initSortable();

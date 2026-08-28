@@ -55,6 +55,8 @@ body.dark{
 body{
   margin:0;
   padding:24px;
+  padding-left:max(24px, env(safe-area-inset-left));
+  padding-right:max(24px, env(safe-area-inset-right));
   font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-size:15px;
   line-height:1.6;
@@ -450,13 +452,32 @@ button.primary:hover{
   box-shadow:0 12px 28px rgba(59,123,224,0.30);
 }
 
-.daily-toggle{
+.form-toggles{
   grid-column:1 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  gap:16px;
+}
+
+.daily-toggle{
   font-size:13px;
   color:var(--text-main);
   display:flex;
   align-items:center;
   gap:8px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.daily-toggle input[type="checkbox"]{
+  accent-color:var(--primary);
+  width:16px;
+  height:16px;
+  cursor:pointer;
+}
+
+.recurring-toggle span{
+  color:var(--recurring-text, #6d28d9);
 }
 
 .view-options-btn{
@@ -682,6 +703,20 @@ li.task.done .task-text{
   border-radius:999px;
   padding:2px 8px;
   font-size:11px;
+}
+
+.recurring-tag{
+  background:#ede9fe;
+  color:#6d28d9;
+  border-radius:999px;
+  padding:2px 8px;
+  font-size:11px;
+  font-weight:500;
+}
+
+body.dark .recurring-tag{
+  background:rgba(139,92,246,0.18);
+  color:#c4b5fd;
 }
 
 /* Due dates */
@@ -937,7 +972,7 @@ li.task.done .task-text{
 .undo-toast{
   position:fixed;
   left:50%;
-  bottom:18px;
+  bottom:calc(18px + env(safe-area-inset-bottom));
   transform:translateX(-50%);
   display:flex;
   align-items:center;
@@ -1153,10 +1188,12 @@ li.task.done .task-text{
   right:0;
   width:320px;
   height:100vh;
+  height:100dvh;
   background:var(--card);
   border-left:1px solid var(--border);
   box-shadow:-10px 0 24px rgba(15,23,42,0.12);
-  padding:24px 22px;
+  padding:max(24px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) 22px;
+  overflow-y:auto;
   transform:translateX(102%);
   opacity:.98;
   visibility:hidden;
@@ -1198,10 +1235,12 @@ li.task.done .task-text{
   right:0;
   width:320px;
   height:100vh;
+  height:100dvh;
   background:var(--card);
   border-left:1px solid var(--border);
   box-shadow:-10px 0 24px rgba(15,23,42,0.12);
-  padding:24px 22px;
+  padding:max(24px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) 22px;
+  overflow-y:auto;
   transform:translateX(102%);
   opacity:.98;
   visibility:hidden;
@@ -1399,11 +1438,106 @@ li.task.done .task-text{
 }
 
 /* --------------------------------------------------
+   Search
+-------------------------------------------------- */
+
+.search-wrap{
+  position:relative;
+  display:flex;
+  align-items:center;
+  margin-top:14px;
+}
+
+.search-icon{
+  position:absolute;
+  left:13px;
+  color:var(--text-muted);
+  pointer-events:none;
+  display:flex;
+  align-items:center;
+  flex-shrink:0;
+}
+
+.search-input{
+  width:100%;
+  padding:10px 40px 10px 38px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--card-soft);
+  font-size:14px;
+  color:var(--text-main);
+  font-family:inherit;
+  -webkit-appearance:none;
+  appearance:none;
+  transition:border-color .15s ease, background .15s ease;
+}
+
+.search-input:focus{
+  outline:none;
+  border-color:var(--primary);
+  background:var(--card);
+}
+
+.search-input::placeholder{
+  color:var(--text-muted);
+}
+
+/* hide browser's built-in ✕ on search inputs */
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration{
+  -webkit-appearance:none;
+}
+
+.search-clear{
+  position:absolute;
+  right:10px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  border:none;
+  background:var(--text-muted);
+  color:var(--card);
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0.55;
+  transition:opacity .15s ease;
+  padding:0;
+}
+
+.search-clear:hover{
+  opacity:1;
+}
+
+.search-clear[hidden]{
+  display:none;
+}
+
+mark.search-hi{
+  background:rgba(59,123,224,0.18);
+  color:inherit;
+  border-radius:2px;
+  padding:0 1px;
+  font-style:normal;
+}
+
+body.dark mark.search-hi{
+  background:rgba(96,165,250,0.25);
+}
+
+/* --------------------------------------------------
    Responsive
 -------------------------------------------------- */
 
 @media (max-width:720px){
-  body{ padding:12px; }
+  body{
+    padding:12px;
+    padding-left:max(12px, env(safe-area-inset-left));
+    padding-right:max(12px, env(safe-area-inset-right));
+  }
 
   .app{
     padding:18px 12px calc(22px + env(safe-area-inset-bottom));
@@ -1427,15 +1561,22 @@ li.task.done .task-text{
   }
 
   .theme-toggle-btn,
-  .sync-refresh-btn,
   .account-chip,
   .chip,
   .icon-btn,
   .sort-select,
   #addForm input[type="text"],
   #addForm input[type="date"],
-  #addForm select{
+  #addForm select,
+  .search-input{
     min-height:44px;
+  }
+
+  .sync-refresh-btn{
+    min-width:44px;
+    min-height:44px;
+    width:44px;
+    height:44px;
   }
 
   .theme-btn{
@@ -1486,12 +1627,12 @@ li.task.done .task-text{
 
   .filters .chip,
   .category-filters .chip{
-    flex:1 1 120px;
+    flex:1 1 80px;
     text-align:center;
     display:flex;
     justify-content:center;
     align-items:center;
-    padding:10px 12px;
+    padding:10px 8px;
   }
 
   .summary{
@@ -1532,13 +1673,35 @@ li.task.done .task-text{
     gap:8px;
   }
 
-  .daily-drawer{
+  .task-leading input[type="checkbox"]{
+    width:22px;
+    height:22px;
+    cursor:pointer;
+  }
+
+  .subtask-check{
+    width:19px;
+    height:19px;
+  }
+
+  .daily-check{
+    width:20px;
+    height:20px;
+  }
+
+  .daily-drawer,
+  #workingDrawer{
     width:100vw;
   }
 }
 
 @media (max-width:480px){
-  body{ padding:6px; }
+  body{
+    padding:6px;
+    padding-left:max(6px, env(safe-area-inset-left));
+    padding-right:max(6px, env(safe-area-inset-right));
+    font-size:16px;
+  }
 
   .app{
     padding:12px 10px calc(16px + env(safe-area-inset-bottom));
@@ -1606,26 +1769,25 @@ li.task.done .task-text{
     min-height:40px;
   }
 
+  .task-leading input[type="checkbox"]{
+    width:24px;
+    height:24px;
+  }
+
+  .subtask-check{
+    width:21px;
+    height:21px;
+  }
+
+  .daily-check{
+    width:22px;
+    height:22px;
+  }
+
   .subtasks{
-    max-height:180px;
-    overflow-y:auto;
     background:#F8F9FA;
     padding:8px;
     border-radius:8px;
-  }
-
-  .subtasks::-webkit-scrollbar{
-    width:6px;
-  }
-
-  .subtasks::-webkit-scrollbar-thumb{
-    background:#cbd5e1;
-    border-radius:999px;
-  }
-
-  .subtasks{
-    scrollbar-width:thin;
-    scrollbar-color:#cbd5e1 transparent;
   }
 
   .slide-in-subtask{
