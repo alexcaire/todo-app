@@ -1,4 +1,6 @@
-﻿import { signIn, signOutUser, onAuth, onTaskList, saveTaskList } from "./firebase.js";
+import { signIn, signOutUser, onAuth, onTaskList, saveTaskList } from "./firebase.js";
+import { callHook, app } from "./plugins.js";
+import "./plugin-loader.js";
 
 // --------------------------------------
 // STORAGE
@@ -140,6 +142,7 @@ function save() {
     console.log("[Storage] saving to key: " + key);
     localStorage.setItem(key, JSON.stringify(tasks));
   }
+  callHook("afterSave", tasks);
   render();
 }
 
@@ -263,7 +266,7 @@ function updateDebugPanel() {
 // --------------------------------------
 function addTask(text, category, dueDate, isDaily, isRecurring) {
   const dueIsToday = isToday(dueDate);
-  tasks.unshift({
+  const task = {
     id: Date.now().toString(),
     text: text.trim(),
     done: false,
@@ -273,7 +276,9 @@ function addTask(text, category, dueDate, isDaily, isRecurring) {
     isDaily: !!isDaily || dueIsToday,
     recurring: !!isRecurring,
     subtasks: []
-  });
+  };
+  tasks.unshift(task);
+  callHook("afterAddTask", task);
   save();
 }
 
@@ -407,6 +412,7 @@ function deleteTask(id) {
       editingTaskId = null;
       editingTaskText = "";
     }
+    callHook("afterDeleteTask", id);
     save();
     showUndoToast("Task deleted.", () => {
       const insertAt = Math.min(index, tasks.length);
@@ -1221,6 +1227,7 @@ function render() {
     menu.appendChild(recurringMenuBtn);
     menu.appendChild(dueMenuBtn);
     menu.appendChild(deleteMenuBtn);
+    callHook("onMenuBuild", menu, t);
     menuWrap.appendChild(moreBtn);
     menuWrap.appendChild(menu);
     controls.appendChild(menuWrap);
@@ -1343,6 +1350,7 @@ function render() {
     subtaskFab.addEventListener("click", mountMobileSubtaskInput);
     li.appendChild(subtaskFab);
 
+    callHook("onTaskRender", li, t);
     listEl.appendChild(li);
   });
 
@@ -1360,6 +1368,7 @@ function render() {
   lastAddedSubtaskTaskId = null;
   // Update the doing/working drawer badge & list
   if (typeof updateWorkingDrawer === "function") updateWorkingDrawer();
+  callHook("afterRender", shown);
 }
 
 // --------------------------------------
@@ -1764,6 +1773,15 @@ if (syncRefreshBtn) {
 }
 
 // --------------------------------------
+// PLUGIN API WIRING
+// --------------------------------------
+app.getTasks = () => tasks;
+app.render = render;
+app.addTask = addTask;
+app.deleteTask = deleteTask;
+app.save = save;
+
+// --------------------------------------
 // INITIALIZE
 // --------------------------------------
 applySavedTheme();
@@ -1772,13 +1790,3 @@ checkDailyReset();
 syncOptionsPanelToViewport();
 render();
 initSortable();
-
-
-
-
-
-
-
-
-
-
